@@ -1,0 +1,51 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+bot_venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# Backups
+*.bak
+*.old
+cogs.bak/
+db.bak/
+backups/
+
+# Logs
+*.log
+log/
+
+# Local configuration (IMPORTANT: Don't upload sensitive data)
+bot_config.env
+bot_token.txt
+
+# Cache and temporary files
+captcha_images/
+*.zip
+package.zip
+update/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+
+
+

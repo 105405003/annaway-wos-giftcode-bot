@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+bot_venv/
+venv/
+env/
+
+# Environment Variables & Secrets
+bot_config.env
+bot_token.txt
+.env
+
+# Database
+db/*.sqlite
+db/*.sqlite-shm
+db/*.sqlite-wal
+*.db
+*.sqlite3
+
+# Logs
+log/
+*.log
+
+# Backups & Temporary Files
+backups/
+cogs.bak/
+db.bak/
+main.py.bak
+update/
+*.zip
+*.bak
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test & Deployment artifacts
+test_discord_members.zip
+diagnostic_package_manager.zip
+pack_output.txt

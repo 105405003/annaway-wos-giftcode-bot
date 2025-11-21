@@ -1,0 +1,23 @@
+[Unit]
+Description=WOS Gift Code Redemption Bot
+After=network.target
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/path/to/wos_giftcode_redemption_bot
+Environment="PATH=/path/to/wos_giftcode_redemption_bot/bot_venv/bin"
+ExecStart=/path/to/wos_giftcode_redemption_bot/bot_venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/path/to/wos_giftcode_redemption_bot/log/bot.log
+StandardError=append:/path/to/wos_giftcode_redemption_bot/log/bot_error.log
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
