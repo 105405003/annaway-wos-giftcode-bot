@@ -5,6 +5,7 @@ from datetime import datetime
 from .alliance_member_operations import AllianceSelectView
 from .alliance import PaginatedChannelView
 from i18n_manager import i18n, _
+from utils.permissions import check_permission
 
 class LogSystem(commands.Cog):
     def __init__(self, bot):
@@ -46,17 +47,28 @@ class LogSystem(commands.Cog):
 
         custom_id = interaction.data.get("custom_id", "")
         
+        # Centralized permission gating for log system buttons
+        admin_only_ids = {
+            "set_log_channel",
+            "remove_log_channel",
+        }
+        
+        manager_ids = {
+            "log_system",
+            "view_log_channels",
+        }
+        
+        # Apply permission checks
+        if custom_id in admin_only_ids:
+            if not await check_permission(interaction, admin_only=True):
+                return
+        elif custom_id in manager_ids:
+            if not await check_permission(interaction, admin_only=False):
+                return
+        
         if custom_id == "log_system":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can access the log system.", 
-                        ephemeral=True
-                    )
-                    return
+                # Permission already checked above
 
                 log_embed = discord.Embed(
                     title="📋 Alliance Log System",
@@ -120,16 +132,7 @@ class LogSystem(commands.Cog):
 
         elif custom_id == "set_log_channel":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can set log channels.", 
-                        ephemeral=True
-                    )
-                    return
-
+                # Permission already checked above
                 self.alliance_cursor.execute("""
                     SELECT alliance_id, name 
                     FROM alliance_list 
@@ -259,16 +262,7 @@ class LogSystem(commands.Cog):
 
         elif custom_id == "remove_log_channel":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can remove log channels.", 
-                        ephemeral=True
-                    )
-                    return
-
+                # Permission already checked above
                 self.settings_cursor.execute("""
                     SELECT al.alliance_id, al.channel_id 
                     FROM alliance_logs al
@@ -438,16 +432,7 @@ class LogSystem(commands.Cog):
 
         elif custom_id == "view_log_channels":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can view log channels.", 
-                        ephemeral=True
-                    )
-                    return
-
+                # Permission already checked above (manager-level access)
                 self.settings_cursor.execute("""
                     SELECT alliance_id, channel_id 
                     FROM alliance_logs 

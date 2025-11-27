@@ -7,6 +7,7 @@ import asyncio
 import requests
 from .alliance_member_operations import AllianceSelectView
 from i18n_manager import i18n, _
+from utils.permissions import check_permission
 
 class BotOperations(commands.Cog):
     def __init__(self, bot, conn):
@@ -69,17 +70,31 @@ class BotOperations(commands.Cog):
         if custom_id == "bot_operations":
             return
         
+        # Centralized permission gating for bot operation buttons
+        admin_only_ids = {
+            "alliance_control_messages",
+            "assign_alliance",
+            "add_admin",
+            "remove_admin",
+        }
+        
+        manager_ids = {
+            "bot_status",
+            "bot_settings",
+            "main_menu",
+        }
+        
+        # Apply permission checks
+        if custom_id in admin_only_ids:
+            if not await check_permission(interaction, admin_only=True):
+                return
+        elif custom_id in manager_ids:
+            if not await check_permission(interaction, admin_only=False):
+                return
+        
         if custom_id == "alliance_control_messages":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can use this command.", 
-                        ephemeral=True
-                    )
-                    return
+                # Permission already checked above
 
                 self.settings_cursor.execute("SELECT value FROM auto LIMIT 1")
                 result = self.settings_cursor.fetchone()
@@ -153,18 +168,9 @@ class BotOperations(commands.Cog):
             try:
                 if custom_id == "assign_alliance":
                     try:
+                        # Permission already checked above
                         with sqlite3.connect('db/settings.sqlite') as settings_db:
                             cursor = settings_db.cursor()
-                            cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                            result = cursor.fetchone()
-                            
-                            if not result or result[0] != 1:
-                                await interaction.response.send_message(
-                                    "❌ Only global administrators can use this command.", 
-                                    ephemeral=True
-                                )
-                                return
-
                             cursor.execute("""
                                 SELECT id, is_initial 
                                 FROM admin 
