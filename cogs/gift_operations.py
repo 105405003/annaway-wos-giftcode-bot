@@ -25,6 +25,7 @@ from .gift_captchasolver import GiftCaptchaSolver
 from .two_captcha_service import TwoCaptchaService
 from collections import deque
 from i18n_manager import i18n, _
+from utils.permissions import requires_annaway_role, check_permission, check_guild_context
 
 class GiftOperations(commands.Cog):
     def __init__(self, bot):
@@ -4915,6 +4916,8 @@ class SimplifiedGiftView(discord.ui.View):
         row=0
     )
     async def add_gift_code(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.create_gift_code(interaction)
 
     @discord.ui.button(
@@ -4945,6 +4948,8 @@ class GiftView(discord.ui.View):
         row=0
     )
     async def create_gift(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.create_gift_code(interaction)
         
     @discord.ui.button(
@@ -4955,6 +4960,8 @@ class GiftView(discord.ui.View):
         row=1
     )
     async def gift_code_settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_settings_menu(interaction)
 
     @discord.ui.button(
@@ -4965,6 +4972,8 @@ class GiftView(discord.ui.View):
         row=0
     )
     async def list_gift(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.list_gift_codes(interaction)
 
 
@@ -4976,10 +4985,12 @@ class GiftView(discord.ui.View):
         row=0
     )
     async def delete_gift_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         try:
             await self.cog.delete_gift_code(interaction)
         except Exception as e:
-            self.logger.exception(f"Delete gift button error: {e}")
+            self.cog.logger.exception(f"Delete gift button error: {e}")
             await interaction.response.send_message(
                 "❌ An error occurred while processing delete request.",
                 ephemeral=True
@@ -4993,6 +5004,8 @@ class GiftView(discord.ui.View):
         row=1
     )
     async def use_gift_alliance_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         try:
             admin_info = await self.cog.get_admin_info(interaction.user.id)
             if not admin_info:
@@ -5303,6 +5316,8 @@ class SettingsMenuView(discord.ui.View):
         row=0
     )
     async def channel_management_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.manage_channel_settings(interaction)
     
     @discord.ui.button(
@@ -5313,6 +5328,8 @@ class SettingsMenuView(discord.ui.View):
         row=0
     )
     async def auto_gift_settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.setup_giftcode_auto(interaction)
     
     @discord.ui.button(
@@ -5323,6 +5340,8 @@ class SettingsMenuView(discord.ui.View):
         row=1
     )
     async def channel_history_scan_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.channel_history_scan(interaction)
     
     @discord.ui.button(
@@ -5333,6 +5352,8 @@ class SettingsMenuView(discord.ui.View):
         row=1
     )
     async def captcha_settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_ocr_settings(interaction)
     
     @discord.ui.button(
@@ -5351,6 +5372,8 @@ class ClearCacheConfirmView(discord.ui.View):
 
     @discord.ui.button(label="Confirm Clear", style=discord.ButtonStyle.danger, emoji="✅")
     async def confirm_clear(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         try: # Clear the user_giftcodes table
             self.parent_cog.cursor.execute("DELETE FROM user_giftcodes")
             deleted_count = self.parent_cog.cursor.rowcount
@@ -5465,12 +5488,16 @@ class OCRSettingsView(discord.ui.View):
 
     async def change_test_fid_button(self, interaction: discord.Interaction):
         """Handle the change test FID button click."""
+        if not await check_permission(interaction, admin_only=True):
+            return
         if not self.onnx_available:
             await interaction.response.send_message("❌ Required library (onnxruntime) is not installed or failed to load.", ephemeral=True)
             return
         await interaction.response.send_modal(TestFIDModal(self.cog))
 
     async def enable_ocr_button(self, interaction: discord.Interaction):
+        if not await check_permission(interaction, admin_only=True):
+            return
         if not self.onnx_available:
             await interaction.response.send_message("❌ Required library (onnxruntime) is not installed or failed to load.", ephemeral=True)
             return
@@ -5481,6 +5508,8 @@ class OCRSettingsView(discord.ui.View):
         await self.cog.show_ocr_settings(interaction)
 
     async def test_ocr_button(self, interaction: discord.Interaction):
+        if not await check_permission(interaction, admin_only=False):
+            return
         logger = self.cog.logger
         user_id = interaction.user.id
         current_time = time.time()
@@ -5647,6 +5676,8 @@ class OCRSettingsView(discord.ui.View):
 
     async def clear_redemption_cache_button(self, interaction: discord.Interaction):
         """Handle the clear redemption cache button click."""
+        if not await check_permission(interaction, admin_only=True):
+            return
         if not self.onnx_available:
             await interaction.response.send_message("❌ Required library (onnxruntime) is not installed or failed to load.", ephemeral=True)
             return
@@ -5687,6 +5718,8 @@ class OCRSettingsView(discord.ui.View):
         await interaction.response.send_message(embed=embed, view=confirm_view, ephemeral=True)
 
     async def image_save_select_callback(self, interaction: discord.Interaction):
+        if not await check_permission(interaction, admin_only=True):
+            return
         if not self.onnx_available:
             await interaction.response.send_message("❌ Required library (onnxruntime) is not installed or failed to load.", ephemeral=True)
             return

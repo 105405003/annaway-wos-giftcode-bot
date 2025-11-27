@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import sqlite3
 from i18n_manager import i18n, _
+from utils.permissions import requires_annaway_role, check_permission, check_guild_context
 
 class PermissionManagement(commands.Cog):
     def __init__(self, bot):
@@ -367,14 +368,20 @@ class PermissionManagementView(discord.ui.View):
     
     @discord.ui.button(label="指定 Manager 權限", emoji="👤", style=discord.ButtonStyle.success, row=0)
     async def assign_permission_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_assign_permission_menu(interaction)
     
     @discord.ui.button(label="查看權限列表", emoji="📋", style=discord.ButtonStyle.primary, row=0)
     async def view_permissions_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_view_permissions_list(interaction)
     
     @discord.ui.button(label="移除權限", emoji="🗑️", style=discord.ButtonStyle.danger, row=1)
     async def remove_permission_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_remove_permission_menu(interaction)
     
     @discord.ui.button(label="主選單", emoji="🏠", style=discord.ButtonStyle.secondary, row=1)
@@ -436,6 +443,10 @@ class ManagerSelectView(discord.ui.View):
         )
         
         async def select_callback(interaction: discord.Interaction):
+            # Admin-only permission check
+            if not await check_permission(interaction, admin_only=True):
+                return
+            
             try:
                 manager_id = int(select.values[0])
                 
@@ -569,6 +580,10 @@ class AllianceSelectForPermissionView(discord.ui.View):
         )
         
         async def select_callback(interaction: discord.Interaction):
+            # Admin-only permission check
+            if not await check_permission(interaction, admin_only=True):
+                return
+            
             try:
                 alliance_id = int(select.values[0])
                 
@@ -596,6 +611,8 @@ class BackToPermissionView(discord.ui.View):
     
     @discord.ui.button(label="返回權限管理", emoji="⚙️", style=discord.ButtonStyle.primary, row=0)
     async def back_to_permission_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await check_permission(interaction, admin_only=True):
+            return
         await self.cog.show_permission_management_menu(interaction)
     
     @discord.ui.button(label="主選單", emoji="🏠", style=discord.ButtonStyle.secondary, row=0)
