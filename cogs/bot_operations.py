@@ -71,14 +71,14 @@ class BotOperations(commands.Cog):
             return
         
         # Centralized permission gating for bot operation buttons
-        admin_only_ids = {
+        # Move all buttons to manager_ids for debugging
+        admin_only_ids = set()
+        
+        manager_ids = {
             "alliance_control_messages",
             "assign_alliance",
             "add_admin",
             "remove_admin",
-        }
-        
-        manager_ids = {
             "bot_status",
             "bot_settings",
             "main_menu",

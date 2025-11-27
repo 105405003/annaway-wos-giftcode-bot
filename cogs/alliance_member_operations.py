@@ -318,13 +318,17 @@ class AllianceMemberOperations(commands.Cog):
     async def handle_member_operations(self, interaction: discord.Interaction):
         """處理成員操作主選單"""
         try:
+            # Defer to prevent interaction timeout
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            
             alliances, _, is_global_admin = await self.get_admin_alliances(
                 interaction.user.id,
                 interaction.guild_id
             )
             
             if not alliances:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ 沒有可用的聯盟",
                     ephemeral=True
                 )
@@ -345,14 +349,25 @@ class AllianceMemberOperations(commands.Cog):
             )
             
             view = MemberOperationsView(self)
-            await interaction.response.edit_message(embed=embed, view=view)
+            
+            # Use followup if already deferred
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
             print(f"Error in handle_member_operations: {e}")
-            await interaction.response.send_message(
-                "❌ 載入成員操作時發生錯誤",
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ 載入成員操作時發生錯誤",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    "❌ 載入成員操作時發生錯誤",
+                    ephemeral=True
+                )
 
 
 class MemberOperationsView(discord.ui.View):
@@ -400,13 +415,17 @@ class MemberOperationsView(discord.ui.View):
     async def _handle_alliance_selection(self, button_interaction, context):
         """處理聯盟選擇"""
         try:
+            # Defer immediately to prevent timeout
+            if not button_interaction.response.is_done():
+                await button_interaction.response.defer(ephemeral=True)
+            
             alliances, _, _ = await self.cog.get_admin_alliances(
                 button_interaction.user.id,
                 button_interaction.guild_id
             )
             
             if not alliances:
-                await button_interaction.response.send_message(
+                await button_interaction.followup.send(
                     "❌ 沒有可用的聯盟",
                     ephemeral=True
                 )
@@ -438,7 +457,7 @@ class MemberOperationsView(discord.ui.View):
                 description="請選擇聯盟：",
                 color=discord.Color.blue()
             )
-            await button_interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await button_interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
             print(f"Error in _handle_alliance_selection: {e}")

@@ -489,6 +489,10 @@ class Alliance(commands.Cog):
                 if not await check_permission(interaction, admin_only=False):
                     return
             
+            # Defer immediately after permission check to prevent timeout
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            
             try:
                 if custom_id == "alliance_operations":
                     embed = discord.Embed(
@@ -551,7 +555,8 @@ class Alliance(commands.Cog):
                         custom_id="main_menu"
                     ))
 
-                    await interaction.response.edit_message(embed=embed, view=view)
+                    # Use edit_original_response since we deferred
+                    await interaction.edit_original_response(embed=embed, view=view)
 
                 elif custom_id == "edit_alliance":
                     # 權限已在上面檢查過（admin_only=True）

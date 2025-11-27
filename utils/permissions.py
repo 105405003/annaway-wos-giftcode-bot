@@ -11,12 +11,14 @@ import discord
 from functools import wraps
 from typing import Optional, Callable
 import logging
+import os
 
 logger = logging.getLogger('permissions')
 
-# Define required role names
-ADMIN_ROLE_NAME = "Annaway_Admin"
-MANAGER_ROLE_NAME = "Annaway_Manager"
+# Define required role names from environment variables
+ADMIN_ROLE_NAME = os.getenv("ANNAWAY_ADMIN_ROLE", "Annaway_Admin")
+MANAGER_ROLE_NAME = os.getenv("ANNAWAY_MANAGER_ROLE", "Annaway_Manager")
+BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "0")) if os.getenv("BOT_OWNER_ID") else None
 
 
 def _get_permission_error_message(admin_only: bool = False) -> str:
@@ -130,8 +132,8 @@ async def check_permission(interaction: discord.Interaction, admin_only: bool = 
     """
     Centralized permission check for all button interactions.
     
-    admin_only=True  -> only Annaway_Admin
-    admin_only=False -> Annaway_Admin or Annaway_Manager
+    admin_only=True  -> only Annaway_Admin (or BOT_OWNER_ID)
+    admin_only=False -> Annaway_Admin or Annaway_Manager (or BOT_OWNER_ID)
     
     Args:
         interaction: Discord interaction object
@@ -145,49 +147,103 @@ async def check_permission(interaction: discord.Interaction, admin_only: bool = 
     guild = interaction.guild
     user = interaction.user
     
+    # Get custom_id for debugging
+    custom_id = interaction.data.get("custom_id", "unknown") if interaction.data else "unknown"
+    
+    # DEBUG: Print basic info
+    print(f"[PERMISSION DEBUG] ========================================")
+    print(f"[PERMISSION DEBUG] custom_id: {custom_id}")
+    print(f"[PERMISSION DEBUG] admin_only: {admin_only}")
+    print(f"[PERMISSION DEBUG] user.id: {user.id}")
+    print(f"[PERMISSION DEBUG] user.name: {user.name if hasattr(user, 'name') else 'unknown'}")
+    print(f"[PERMISSION DEBUG] guild.id: {guild.id if guild else None}")
+    print(f"[PERMISSION DEBUG] guild.name: {guild.name if guild else None}")
+    
+    # Check if user is bot owner (hard override)
+    if BOT_OWNER_ID and user.id == BOT_OWNER_ID:
+        print(f"[PERMISSION DEBUG] ✅ ALLOWED - User is BOT_OWNER")
+        print(f"[PERMISSION DEBUG] ========================================")
+        return True
+    
     # If we are not in a guild context, deny by default
     if guild is None or not isinstance(user, discord.Member):
+        print(f"[PERMISSION DEBUG] ❌ DENIED - Not in guild context or not a member")
+        print(f"[PERMISSION DEBUG] ========================================")
         try:
             if not interaction.response.is_done():
                 await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
             else:
                 await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
-        except Exception:
-            # Swallow any errors from error reporting itself
-            pass
+        except Exception as e:
+            print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
         return False
     
-    # Fetch roles by name
+    # DEBUG: Print all user roles
+    user_role_names = [role.name for role in user.roles]
+    user_role_ids = [role.id for role in user.roles]
+    print(f"[PERMISSION DEBUG] User roles (names): {user_role_names}")
+    print(f"[PERMISSION DEBUG] User roles (IDs): {user_role_ids}")
+    
+    # Fetch roles by name from environment
+    print(f"[PERMISSION DEBUG] Looking for admin role: '{ADMIN_ROLE_NAME}'")
+    print(f"[PERMISSION DEBUG] Looking for manager role: '{MANAGER_ROLE_NAME}'")
+    
     admin_role = discord.utils.get(guild.roles, name=ADMIN_ROLE_NAME)
     manager_role = discord.utils.get(guild.roles, name=MANAGER_ROLE_NAME)
     
-    has_admin_role_flag = admin_role in user.roles if admin_role else False
-    has_manager_role_flag = manager_role in user.roles if manager_role else False
+    print(f"[PERMISSION DEBUG] Admin role found in guild: {admin_role is not None}")
+    if admin_role:
+        print(f"[PERMISSION DEBUG] Admin role ID: {admin_role.id}")
+    
+    print(f"[PERMISSION DEBUG] Manager role found in guild: {manager_role is not None}")
+    if manager_role:
+        print(f"[PERMISSION DEBUG] Manager role ID: {manager_role.id}")
+    
+    has_annaway_admin_role = admin_role in user.roles if admin_role else False
+    has_annaway_manager_role = manager_role in user.roles if manager_role else False
+    
+    print(f"[PERMISSION DEBUG] has_annaway_admin_role: {has_annaway_admin_role}")
+    print(f"[PERMISSION DEBUG] has_annaway_manager_role: {has_annaway_manager_role}")
+    
+    # Determine if user is global admin or manager
+    is_global_admin = has_annaway_admin_role
+    is_manager = has_annaway_admin_role or has_annaway_manager_role
+    
+    print(f"[PERMISSION DEBUG] is_global_admin: {is_global_admin}")
+    print(f"[PERMISSION DEBUG] is_manager: {is_manager}")
     
     # Admin-only actions: must be Annaway_Admin
     if admin_only:
-        if has_admin_role_flag:
+        if is_global_admin:
+            print(f"[PERMISSION DEBUG] ✅ ALLOWED - Admin-only action, user is global admin")
+            print(f"[PERMISSION DEBUG] ========================================")
             return True
+        print(f"[PERMISSION DEBUG] ❌ DENIED - Admin-only action, user is not global admin")
+        print(f"[PERMISSION DEBUG] ========================================")
         try:
             if not interaction.response.is_done():
                 await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
             else:
                 await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
         return False
     
     # Manager-level actions: Annaway_Admin OR Annaway_Manager
-    if has_admin_role_flag or has_manager_role_flag:
+    if is_manager:
+        print(f"[PERMISSION DEBUG] ✅ ALLOWED - Manager-level action, user is manager or admin")
+        print(f"[PERMISSION DEBUG] ========================================")
         return True
     
+    print(f"[PERMISSION DEBUG] ❌ DENIED - Manager-level action, user is neither manager nor admin")
+    print(f"[PERMISSION DEBUG] ========================================")
     try:
         if not interaction.response.is_done():
             await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
         else:
             await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
     return False
 
 

@@ -9,6 +9,10 @@ class OtherFeatures(commands.Cog):
         
     async def show_other_features_menu(self, interaction: discord.Interaction):
         try:
+            # Defer if not already done
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            
             embed = discord.Embed(
                 title=_('other_features', 'SETTINGS'),
                 description=(
@@ -33,10 +37,8 @@ class OtherFeatures(commands.Cog):
             
             view = OtherFeaturesView(self)
             
-            try:
-                await interaction.response.edit_message(embed=embed, view=view)
-            except discord.InteractionResponded:
-                pass
+            # Use edit_original_response since we deferred
+            await interaction.edit_original_response(embed=embed, view=view)
                 
         except Exception as e:
             print(f"Error in show_other_features_menu: {e}")

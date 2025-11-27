@@ -58,6 +58,10 @@ class Changes(commands.Cog):
 
     async def show_alliance_history_menu(self, interaction: discord.Interaction):
         try:
+            # Defer if not already done
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            
             embed = discord.Embed(
                 title=_('alliance_history_menu', 'CHANGES'),
                 description=(
@@ -73,7 +77,8 @@ class Changes(commands.Cog):
             )
 
             view = HistoryView(self)
-            await interaction.response.edit_message(embed=embed, view=view)
+            # Use edit_original_response since we deferred
+            await interaction.edit_original_response(embed=embed, view=view)
             
         except Exception as e:
             if not any(error_code in str(e) for error_code in ["10062", "40060"]):
