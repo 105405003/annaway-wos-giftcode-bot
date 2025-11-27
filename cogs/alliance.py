@@ -6,7 +6,12 @@ import asyncio
 from datetime import datetime
 from i18n_manager import i18n, _
 from permission_manager import permission_manager, PermissionLevel
-from utils.permissions import requires_annaway_role, requires_annaway_role_button
+from utils.permissions import (
+    requires_annaway_role,
+    requires_annaway_role_button,
+    check_permission,
+    check_guild_context,
+)
 
 class AllianceModal(discord.ui.Modal):
     def __init__(self, title: str, default_name: str = "", default_interval: str = "0"):
@@ -450,28 +455,40 @@ class Alliance(commands.Cog):
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.type == discord.InteractionType.component:
             custom_id = interaction.data.get("custom_id")
-            # 🆕 1. 用 permission_manager 判斷是否可以使用設定選單相關按鈕
-            member = (
-                interaction.user
-                if isinstance(interaction.user, discord.Member)
-                else interaction.guild.get_member(interaction.user.id)
-                if interaction.guild
-                else interaction.user
-            )
-            # 沒有 settings_access 的人一律擋掉（一般使用者）
-            if not permission_manager.has_permission(member, "settings_access"):
-                await interaction.response.send_message(
-                    "You do not have permission to perform this action.",
-                    ephemeral=True
-                )
-                return
             
-            # 🧷 2. 舊的 admin 設定：只拿來判斷「是不是全域 Admin」
+            # 計算 is_global_admin（僅用於按鈕 disabled 狀態）
             user_id = interaction.user.id
             self.c_settings.execute("SELECT id, is_initial FROM admin WHERE id = ?", (user_id,))
-            admin = self.c_settings.fetchone()
-            is_global_admin = bool(admin and admin[1] == 1)
-
+            admin_row = self.c_settings.fetchone()
+            is_global_admin = bool(admin_row and admin_row[1] == 1)
+            
+            # 定義權限等級映射
+            admin_only_ids = {
+                "add_alliance",
+                "edit_alliance", 
+                "delete_alliance",
+                "permission_management",
+            }
+            
+            manager_ids = {
+                "alliance_operations",
+                "member_operations",
+                "gift_code_operations",
+                "alliance_history",
+                "other_features",
+                "check_alliance",
+                "view_alliances",
+                "main_menu",
+            }
+            
+            # 統一權限檢查
+            if custom_id in admin_only_ids:
+                if not await check_permission(interaction, admin_only=True):
+                    return
+            elif custom_id in manager_ids:
+                if not await check_permission(interaction, admin_only=False):
+                    return
+            
             try:
                 if custom_id == "alliance_operations":
                     embed = discord.Embed(
@@ -537,19 +554,7 @@ class Alliance(commands.Cog):
                     await interaction.response.edit_message(embed=embed, view=view)
 
                 elif custom_id == "edit_alliance":
-                    # 檢查權限：全域管理員 或 Annaway_Manager 身分組
-                    has_manager_role = False
-                    if interaction.guild:
-                        manager_role = discord.utils.get(interaction.guild.roles, name="Annaway_Manager")
-                        if manager_role and manager_role in interaction.user.roles:
-                            has_manager_role = True
-                    
-                    if not is_global_admin and not has_manager_role:
-                        await interaction.response.send_message(
-                            "❌ 您沒有權限執行此操作 (需要全域管理員或 Annaway_Manager 身分組)",
-                            ephemeral=True
-                        )
-                        return
+                    # 權限已在上面檢查過（admin_only=True）
                     await self.edit_alliance(interaction)
 
                 elif custom_id == "check_alliance":
@@ -836,12 +841,7 @@ class Alliance(commands.Cog):
                             )
 
                 elif custom_id == "add_alliance":
-                    if not is_global_admin:
-                        await interaction.response.send_message(
-                            "You do not have permission to perform this action.",
-                            ephemeral=True
-                        )
-                        return
+                    # 權限已在上面檢查過（admin_only=True）
                     await self.add_alliance(interaction)
 
                 elif custom_id == "delete_alliance":
