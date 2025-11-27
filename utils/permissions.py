@@ -128,7 +128,10 @@ async def check_guild_context(interaction: discord.Interaction) -> bool:
 
 async def check_permission(interaction: discord.Interaction, admin_only: bool = False) -> bool:
     """
-    Check if user has required permissions. Sends error message if not.
+    Centralized permission check for all button interactions.
+    
+    admin_only=True  -> only Annaway_Admin
+    admin_only=False -> Annaway_Admin or Annaway_Manager
     
     Args:
         interaction: Discord interaction object
@@ -137,35 +140,55 @@ async def check_permission(interaction: discord.Interaction, admin_only: bool = 
     Returns:
         True if user has permission, False otherwise (error already sent)
     """
-    # First check if in guild
-    if not await check_guild_context(interaction):
+    ERROR_MESSAGE = "❌ You do not have permission to perform this action."
+    
+    guild = interaction.guild
+    user = interaction.user
+    
+    # If we are not in a guild context, deny by default
+    if guild is None or not isinstance(user, discord.Member):
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
+            else:
+                await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
+        except Exception:
+            # Swallow any errors from error reporting itself
+            pass
         return False
     
-    member = interaction.user
-    if not isinstance(member, discord.Member):
-        await interaction.response.send_message(
-            "❌ Unable to verify your permissions.",
-            ephemeral=True
-        )
-        return False
+    # Fetch roles by name
+    admin_role = discord.utils.get(guild.roles, name=ADMIN_ROLE_NAME)
+    manager_role = discord.utils.get(guild.roles, name=MANAGER_ROLE_NAME)
     
-    # Check role requirement
+    has_admin_role_flag = admin_role in user.roles if admin_role else False
+    has_manager_role_flag = manager_role in user.roles if manager_role else False
+    
+    # Admin-only actions: must be Annaway_Admin
     if admin_only:
-        if not has_admin_role(member):
-            await interaction.response.send_message(
-                _get_permission_error_message(admin_only=True),
-                ephemeral=True
-            )
-            return False
-    else:
-        if not has_annaway_role(member):
-            await interaction.response.send_message(
-                _get_permission_error_message(admin_only=False),
-                ephemeral=True
-            )
-            return False
+        if has_admin_role_flag:
+            return True
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
+            else:
+                await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
+        except Exception:
+            pass
+        return False
     
-    return True
+    # Manager-level actions: Annaway_Admin OR Annaway_Manager
+    if has_admin_role_flag or has_manager_role_flag:
+        return True
+    
+    try:
+        if not interaction.response.is_done():
+            await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
+        else:
+            await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
+    except Exception:
+        pass
+    return False
 
 
 def requires_annaway_role(admin_only: bool = False):
