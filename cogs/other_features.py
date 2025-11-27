@@ -127,7 +127,6 @@ class OtherFeaturesView(discord.ui.View):
         label=_('main_menu', 'GENERAL'),
         emoji="🏠",
         style=discord.ButtonStyle.secondary,
-        custom_id="main_menu",
         row=2
     )
     async def main_menu_button(self, interaction: discord.Interaction, button: discord.ui.Button):

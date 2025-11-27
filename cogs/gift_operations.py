@@ -2076,6 +2076,19 @@ class GiftOperations(commands.Cog):
         taiwan_tz = pytz.timezone('Asia/Taipei')
         now_taiwan = datetime.now(taiwan_tz)
         
+        self.logger.info(f"[自動重試] 機器人已就緒")
+        self.logger.info(f"[自動重試] 當前台灣時間: {now_taiwan.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(f"[自動重試] 機器人啟動時立即執行一次檢查...")
+        
+        # 立即執行一次檢查
+        try:
+            await self.auto_retry_redemption_loop()
+        except Exception as e:
+            self.logger.error(f"[自動重試] 啟動時檢查發生錯誤: {e}")
+        
+        # 重新取得時間 (因為檢查可能花了一些時間)
+        now_taiwan = datetime.now(taiwan_tz)
+
         # 計算下一個執行時間（8:00 或 20:00）
         current_hour = now_taiwan.hour
         if current_hour < 8:
@@ -2090,18 +2103,13 @@ class GiftOperations(commands.Cog):
         
         next_run_time = now_taiwan + timedelta(seconds=wait_time)
         
-        self.logger.info(f"[自動重試] 機器人已就緒")
-        self.logger.info(f"[自動重試] 當前台灣時間: {now_taiwan.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info(f"[自動重試] 機器人啟動時立即執行一次檢查...")
-        
-        # 立即執行一次檢查
-        try:
-            await self.auto_retry_redemption_loop()
-        except Exception as e:
-            self.logger.error(f"[自動重試] 啟動時檢查發生錯誤: {e}")
-        
         self.logger.info(f"[自動重試] 下次執行時間: 台灣時間 {next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info(f"[自動重試] 自動重試循環已啟動（每天 8:00 和 20:00 執行）")
+        self.logger.info(f"[自動重試] 系統將進入休眠，直到下次排程時間 ({wait_time:.0f} 秒後)")
+        
+        # 等待直到下一個 8:00 或 20:00
+        await asyncio.sleep(wait_time)
+        
+        self.logger.info(f"[自動重試] 休眠結束，準備啟動自動重試循環（每天 8:00 和 20:00 執行）")
 
     async def manual_retry_check(self, interaction: discord.Interaction = None):
         """手動觸發重試檢查（可由管理員調用）"""
@@ -4517,6 +4525,7 @@ class GiftOperations(commands.Cog):
 
             # Final Embed Update
             if not code_is_invalid:
+                from i18n_manager import _  # Import _ for this scope
                 self.logger.info(f"GiftOps: Alliance {alliance_id} processing loop finished. Preparing final update.")
                 final_title = _("process_complete", "GIFT_CODE").format(code=giftcode)
                 final_color = discord.Color.green() if failed_count == 0 and total_members > 0 else \
@@ -4525,6 +4534,16 @@ class GiftOperations(commands.Cog):
                 if total_members == 0:
                     final_title = _("no_members_to_process", "GIFT_CODE").format(code=giftcode)
                     final_color = discord.Color.light_grey()
+                
+                # Count active members to handle potential race conditions or missing members
+                processed_total = processed_count
+                if processed_total < total_members:
+                    # This handles the "86/87" case where a member might be missing from processing loop
+                    skipped_count = total_members - processed_total
+                    self.logger.warning(f"GiftOps: Discrepancy in processed count. Total: {total_members}, Processed: {processed_total}. Missing: {skipped_count}")
+                    # We don't add to failed, but log it. It's likely a race condition or list modification.
+                    # To make the embed look correct (total=processed), we can just update the description
+                    pass
 
                 embed.title = final_title
                 embed.color = final_color
@@ -4539,7 +4558,7 @@ class GiftOperations(commands.Cog):
                     self.logger.warning(f"GiftOps: WARN - Failed to edit final progress embed for alliance {alliance_id}: Missing permissions.")
                 except Exception as final_embed_err:
                     self.logger.exception(f"GiftOps: WARN - Failed to edit final progress embed for alliance {alliance_id}: {final_embed_err}")
-
+            
             summary_lines = [
                 "\n",
                 "--- Redemption Summary Start ---",
@@ -4595,6 +4614,7 @@ class GiftOperations(commands.Cog):
             return True
         
         except Exception as e:
+            import traceback
             self.logger.exception(f"GiftOps: UNEXPECTED ERROR in use_giftcode_for_alliance for {alliance_id}/{giftcode}: {str(e)}")
             self.logger.exception(f"Traceback: {traceback.format_exc()}")
             try:

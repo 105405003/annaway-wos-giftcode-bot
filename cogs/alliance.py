@@ -329,7 +329,7 @@ class Alliance(commands.Cog):
                 else:
                     # 來自 slash command - 使用 send_message
                     print(f"[DEBUG] 嘗試 send_message...")
-                    await interaction.response.send_message(embed=embed, view=view)
+                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                     print(f"[DEBUG] send_message 成功")
             except (discord.errors.InteractionResponded, discord.errors.HTTPException) as e:
                 print(f"[DEBUG] 第一次嘗試失敗: {e}")
@@ -520,8 +520,16 @@ class Alliance(commands.Cog):
                     await interaction.response.edit_message(embed=embed, view=view)
 
                 elif custom_id == "edit_alliance":
-                    if admin[1] != 1:
-                        await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
+                    # 檢查權限：全域管理員(admin[1]==1) 或 擁有 Annaway_Manager 身分組
+                    is_global_admin = admin[1] == 1
+                    has_manager_role = False
+                    if interaction.guild:
+                        manager_role = discord.utils.get(interaction.guild.roles, name="Annaway_Manager")
+                        if manager_role and manager_role in interaction.user.roles:
+                            has_manager_role = True
+                    
+                    if not is_global_admin and not has_manager_role:
+                        await interaction.response.send_message("❌ 您沒有權限執行此操作 (需要全域管理員或 Annaway_Manager 身分組)", ephemeral=True)
                         return
                     await self.edit_alliance(interaction)
 
