@@ -435,6 +435,10 @@ except Exception as e:
 
 if __name__ == "__main__":
     import requests
+    
+    # 顯示啟動 Banner
+    from utils.banner import print_startup_banner, __version__
+    print_startup_banner(__version__)
 
     # 已移除自動更新功能，避免專案被意外覆蓋
 

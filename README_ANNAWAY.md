@@ -264,12 +264,43 @@ Located in `db/` directory:
 - Regularly review users with `Annaway_Admin` role
 - Back up database files before updates
 
-## 📄 License
+## 📄 Credits & License
 
-See [LICENSE](LICENSE) file for details.
+### Original Project
 
-Original project by Whiteout Survival community.
-Customized and maintained by Annaway Studio.
+This bot is based on [Reloisback/Whiteout-Survival-Discord-Bot](https://github.com/Reloisback/Whiteout-Survival-Discord-Bot).
+
+**Original Author:** Reloisback  
+**Original Repository:** https://github.com/Reloisback/Whiteout-Survival-Discord-Bot
+
+We thank Reloisback for creating the foundation of this bot and making it available to the community.
+
+### Annaway Fork
+
+This is an unofficial **Annaway Studio** fork that adds:
+- Multi-guild isolation by `discord_server_id`
+- Role-based permissions (`Annaway_Admin`, `Annaway_Manager`)
+- Traditional Chinese localization
+- Enhanced UX and documentation
+- Deployment optimizations
+
+### License Terms
+
+**The original license terms in [LICENSE](LICENSE) continue to apply to this fork.**
+
+Key points:
+- ✅ Allowed: Personal use, educational purposes, modifications
+- ❌ Restricted: Commercial use requires written permission from original author
+- ❌ Prohibited: Selling to specific Discord server members
+- 📝 Required: Attribution to original author in derivative works
+
+For detailed licensing information, see:
+- [LICENSE](LICENSE) - Original license terms
+- [ANNAWAY_NOTICE.md](ANNAWAY_NOTICE.md) - Fork-specific information
+
+**For commercial use inquiries, contact the original author:**
+- Email: usabsz@gmail.com
+- GitHub: https://github.com/Reloisback
 
 ## 🤝 Support
 

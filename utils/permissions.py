@@ -19,6 +19,47 @@ ADMIN_ROLE_NAME = "Annaway_Admin"
 MANAGER_ROLE_NAME = "Annaway_Manager"
 
 
+def _get_permission_error_message(admin_only: bool = False) -> str:
+    """
+    取得權限錯誤訊息（內部使用，避免循環引入）
+    
+    Args:
+        admin_only: 是否僅限 Admin
+    
+    Returns:
+        格式化的錯誤訊息
+    """
+    if admin_only:
+        return (
+            "❌ **權限不足**\n\n"
+            f"此功能僅限 `{ADMIN_ROLE_NAME}` 身分組使用。\n\n"
+            "📌 **如何獲得權限？**\n"
+            "請聯絡伺服器管理員，或參考 Annaway 文件中的權限說明。"
+        )
+    else:
+        return (
+            "❌ **權限不足**\n\n"
+            f"此功能需要 `{ADMIN_ROLE_NAME}` 或 `{MANAGER_ROLE_NAME}` 身分組。\n\n"
+            "📌 **如何獲得權限？**\n"
+            "請聯絡伺服器管理員，或參考 Annaway 文件中的權限說明。"
+        )
+
+
+def _get_no_guild_message() -> str:
+    """
+    取得非伺服器環境錯誤訊息（內部使用）
+    
+    Returns:
+        格式化的錯誤訊息
+    """
+    return (
+        "❌ **無法在私訊中使用**\n\n"
+        "這個指令只能在伺服器頻道使用，不能在私訊中使用。\n\n"
+        "📌 **如何使用？**\n"
+        "請回到你的伺服器頻道再試一次。"
+    )
+
+
 def has_annaway_role(member: discord.Member) -> bool:
     """
     Check if member has either Annaway_Admin or Annaway_Manager role.
@@ -78,7 +119,7 @@ async def check_guild_context(interaction: discord.Interaction) -> bool:
     """
     if not is_guild_context(interaction):
         await interaction.response.send_message(
-            "❌ This command can only be used in a server, not in DMs.",
+            _get_no_guild_message(),
             ephemeral=True
         )
         return False
@@ -112,16 +153,14 @@ async def check_permission(interaction: discord.Interaction, admin_only: bool = 
     if admin_only:
         if not has_admin_role(member):
             await interaction.response.send_message(
-                f"❌ You don't have permission to use this command.\n"
-                f"Only members with the **{ADMIN_ROLE_NAME}** role can use this.",
+                _get_permission_error_message(admin_only=True),
                 ephemeral=True
             )
             return False
     else:
         if not has_annaway_role(member):
             await interaction.response.send_message(
-                f"❌ You don't have permission to use this command.\n"
-                f"Only members with **{ADMIN_ROLE_NAME}** or **{MANAGER_ROLE_NAME}** roles can use this.",
+                _get_permission_error_message(admin_only=False),
                 ephemeral=True
             )
             return False
@@ -171,7 +210,7 @@ def requires_annaway_role_button(admin_only: bool = False):
             # For button callbacks, we need to check permissions differently
             if not is_guild_context(interaction):
                 await interaction.response.send_message(
-                    "❌ This action can only be used in a server.",
+                    _get_no_guild_message(),
                     ephemeral=True
                 )
                 return
@@ -179,7 +218,7 @@ def requires_annaway_role_button(admin_only: bool = False):
             member = interaction.user
             if not isinstance(member, discord.Member):
                 await interaction.response.send_message(
-                    "❌ Unable to verify your permissions.",
+                    "❌ **無法驗證權限**\n\n無法取得您的成員資訊。",
                     ephemeral=True
                 )
                 return
@@ -188,16 +227,14 @@ def requires_annaway_role_button(admin_only: bool = False):
             if admin_only:
                 if not has_admin_role(member):
                     await interaction.response.send_message(
-                        f"❌ You don't have permission for this action.\n"
-                        f"Only **{ADMIN_ROLE_NAME}** can do this.",
+                        _get_permission_error_message(admin_only=True),
                         ephemeral=True
                     )
                     return
             else:
                 if not has_annaway_role(member):
                     await interaction.response.send_message(
-                        f"❌ You don't have permission for this action.\n"
-                        f"Only **{ADMIN_ROLE_NAME}** or **{MANAGER_ROLE_NAME}** can do this.",
+                        _get_permission_error_message(admin_only=False),
                         ephemeral=True
                     )
                     return
