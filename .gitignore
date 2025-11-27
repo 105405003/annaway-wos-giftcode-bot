@@ -33,6 +33,18 @@ update/
 *.zip
 *.bak
 *.tmp
+pack_output.txt
+
+# Packaging/deployment scripts (not needed for Annaway fork)
+pack_*.py
+quick_pack.py
+hotfix_*.py
+add_interaction_logging.py
+fix_*.py
+check_managers.py
+完整診斷腳本.sh
+deploy_check.sh
+quick_deploy.sh
 
 # OS generated files
 .DS_Store

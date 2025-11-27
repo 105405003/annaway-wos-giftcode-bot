@@ -2529,11 +2529,25 @@ class GiftOperations(commands.Cog):
         """, (user_id,))
         return self.settings_cursor.fetchone()
 
-    async def get_alliance_names(self, user_id, is_global=False):
+    async def get_alliance_names(self, user_id, is_global=False, guild_id=None):
+        """
+        Get alliance names for a user.
+        
+        Args:
+            user_id: Discord user ID
+            is_global: If True, return all alliances (admin only). Otherwise filter by guild.
+            guild_id: Guild ID for filtering (required if not is_global)
+        """
         if is_global:
+            # Global admins see all alliances (backward compat for now)
+            # TODO: Consider removing global admin concept for pure multi-guild
             self.alliance_cursor.execute("SELECT name FROM alliance_list")
             return [row[0] for row in self.alliance_cursor.fetchall()]
         else:
+            # For non-global, must filter by guild_id
+            if guild_id is None:
+                return []
+            
             self.settings_cursor.execute("""
                 SELECT alliances_id FROM adminserver WHERE admin = ?
             """, (user_id,))
@@ -2541,16 +2555,37 @@ class GiftOperations(commands.Cog):
             
             if alliance_ids:
                 placeholders = ','.join('?' * len(alliance_ids))
+                # Filter by both alliance_id AND guild_id
                 self.alliance_cursor.execute(f"""
                     SELECT name FROM alliance_list 
                     WHERE alliance_id IN ({placeholders})
-                """, alliance_ids)
+                    AND discord_server_id = ?
+                """, alliance_ids + [guild_id])
                 return [row[0] for row in self.alliance_cursor.fetchall()]
-            return []
+            
+            # If no special alliances assigned, return all from this guild
+            self.alliance_cursor.execute("""
+                SELECT name FROM alliance_list
+                WHERE discord_server_id = ?
+            """, (guild_id,))
+            return [row[0] for row in self.alliance_cursor.fetchall()]
 
     async def get_available_alliances(self, interaction: discord.Interaction):
+        """
+        Get alliances available to the user in the current guild context.
+        
+        Args:
+            interaction: Discord interaction containing guild context
+            
+        Returns:
+            List of (alliance_id, name) tuples for current guild
+        """
         user_id = interaction.user.id
         guild_id = interaction.guild_id if interaction.guild else None
+        
+        # Require guild context for safety
+        if not guild_id:
+            return []
 
         admin_info = await self.get_admin_info(user_id)
         if not admin_info:
@@ -2559,9 +2594,15 @@ class GiftOperations(commands.Cog):
         is_global = admin_info[1] == 1
 
         if is_global:
-            self.alliance_cursor.execute("SELECT alliance_id, name FROM alliance_list")
+            # Even global admins should only see current guild's alliances
+            # This maintains proper multi-guild isolation
+            self.alliance_cursor.execute("""
+                SELECT alliance_id, name FROM alliance_list
+                WHERE discord_server_id = ?
+            """, (guild_id,))
             return self.alliance_cursor.fetchall()
 
+        # Non-global users: show alliances from current guild only
         if guild_id:
             self.alliance_cursor.execute("""
                 SELECT DISTINCT alliance_id, name 
