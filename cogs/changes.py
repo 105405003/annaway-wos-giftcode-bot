@@ -77,12 +77,25 @@ class Changes(commands.Cog):
             )
 
             view = HistoryView(self)
-            # Use edit_original_response since we deferred
-            await interaction.edit_original_response(embed=embed, view=view)
+            
+            # 優先嘗試編輯 original response
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，就用 followup
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
             if not any(error_code in str(e) for error_code in ["10062", "40060"]):
                 print(f"Show alliance history menu error: {e}")
+            error_msg = "An error occurred while loading Alliance History."
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+                else:
+                    await interaction.followup.send(error_msg, ephemeral=True)
+            except Exception:
+                pass
 
     async def get_admin_info(self, user_id: int):
         try:

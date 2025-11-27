@@ -82,15 +82,11 @@ class Alliance(commands.Cog):
             await interaction.response.send_message(_("command_server_only", "ERRORS"), ephemeral=True)
             return
 
+        # Permission already checked by @requires_annaway_role decorator
         user_id = interaction.user.id
         self.c_settings.execute("SELECT id, is_initial FROM admin WHERE id = ?", (user_id,))
         admin = self.c_settings.fetchone()
-
-        if admin is None:
-            await interaction.response.send_message(_("no_permission", "ERRORS"), ephemeral=True)
-            return
-
-        is_initial = admin[1]
+        is_initial = admin[1] if admin else 0
         guild_id = interaction.guild.id
 
         try:

@@ -8,6 +8,7 @@ import asyncio
 import json
 import traceback
 import time
+from utils.permissions import check_permission
 
 class BearTrap(commands.Cog):
     def __init__(self, bot):
@@ -701,21 +702,8 @@ class BearTrap(commands.Cog):
                 )
 
     async def check_admin(self, interaction: discord.Interaction) -> bool:
-        try:
-            conn = sqlite3.connect('db/settings.sqlite')
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM admin WHERE id = ?", (interaction.user.id,))
-            is_admin = cursor.fetchone() is not None
-            conn.close()
-
-            if not is_admin:
-                await interaction.response.send_message("❌ You don't have permission to use this command!",
-                                                        ephemeral=True)
-                return False
-            return True
-        except Exception as e:
-            print(f"Error in admin check: {e}")
-            return False
+        """Check if user has manager/admin permissions via centralized system."""
+        return await check_permission(interaction, admin_only=False)
 
     async def show_channel_selection(self, interaction: discord.Interaction, start_date, hour, minute, timezone,
                                      message_data, channels):

@@ -463,11 +463,15 @@ class MemberOperationsView(discord.ui.View):
             print(f"Error in _handle_alliance_selection: {e}")
             import traceback
             traceback.print_exc()
-            if not button_interaction.response.is_done():
-                await button_interaction.response.send_message(
-                    "❌ 處理時發生錯誤",
-                    ephemeral=True
-                )
+            error_msg = "❌ 處理時發生錯誤"
+            try:
+                if not button_interaction.response.is_done():
+                    await button_interaction.response.send_message(error_msg, ephemeral=True)
+                else:
+                    await button_interaction.followup.send(error_msg, ephemeral=True)
+            except Exception:
+                # 避免 nested 錯誤
+                pass
 
 
 class AllianceSelectView(discord.ui.View):

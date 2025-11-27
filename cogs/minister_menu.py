@@ -947,7 +947,7 @@ class MinisterMenu(commands.Cog):
         else:
             # Count appointments for allowed alliances
             if not alliance_ids:
-                await interaction.response.send_message("❌ You don't have permission to clear appointments.", ephemeral=True)
+                await interaction.response.send_message("❌ You have no alliances assigned to manage.", ephemeral=True)
                 return
             
             placeholders = ','.join('?' for _ in alliance_ids)

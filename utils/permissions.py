@@ -128,123 +128,141 @@ async def check_guild_context(interaction: discord.Interaction) -> bool:
     return True
 
 
-async def check_permission(interaction: discord.Interaction, admin_only: bool = False) -> bool:
+async def check_permission(
+    interaction: discord.Interaction,
+    admin_only: bool = False,
+) -> bool:
+    """統一檢查 Annaway 權限。
+    
+    admin_only=True  -> 只允許 Annaway_Admin 或 DB is_initial=1
+    admin_only=False -> Annaway_Admin / Annaway_Manager / DB is_initial=1 都可用
     """
-    Centralized permission check for all button interactions.
     
-    admin_only=True  -> only Annaway_Admin (or BOT_OWNER_ID)
-    admin_only=False -> Annaway_Admin or Annaway_Manager (or BOT_OWNER_ID)
+    PERMISSION_ERROR_MESSAGE = "❌ You do not have permission to perform this action."
     
-    Args:
-        interaction: Discord interaction object
-        admin_only: If True, require Annaway_Admin role specifically
-        
-    Returns:
-        True if user has permission, False otherwise (error already sent)
-    """
-    ERROR_MESSAGE = "❌ You do not have permission to perform this action."
-    
-    guild = interaction.guild
-    user = interaction.user
-    
-    # Get custom_id for debugging
-    custom_id = interaction.data.get("custom_id", "unknown") if interaction.data else "unknown"
-    
-    # DEBUG: Print basic info
-    print(f"[PERMISSION DEBUG] ========================================")
-    print(f"[PERMISSION DEBUG] custom_id: {custom_id}")
-    print(f"[PERMISSION DEBUG] admin_only: {admin_only}")
-    print(f"[PERMISSION DEBUG] user.id: {user.id}")
-    print(f"[PERMISSION DEBUG] user.name: {user.name if hasattr(user, 'name') else 'unknown'}")
-    print(f"[PERMISSION DEBUG] guild.id: {guild.id if guild else None}")
-    print(f"[PERMISSION DEBUG] guild.name: {guild.name if guild else None}")
-    
-    # Check if user is bot owner (hard override)
-    if BOT_OWNER_ID and user.id == BOT_OWNER_ID:
-        print(f"[PERMISSION DEBUG] ✅ ALLOWED - User is BOT_OWNER")
-        print(f"[PERMISSION DEBUG] ========================================")
-        return True
-    
-    # If we are not in a guild context, deny by default
-    if guild is None or not isinstance(user, discord.Member):
-        print(f"[PERMISSION DEBUG] ❌ DENIED - Not in guild context or not a member")
-        print(f"[PERMISSION DEBUG] ========================================")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
-            else:
-                await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
-        except Exception as e:
-            print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
-        return False
-    
-    # DEBUG: Print all user roles
-    user_role_names = [role.name for role in user.roles]
-    user_role_ids = [role.id for role in user.roles]
-    print(f"[PERMISSION DEBUG] User roles (names): {user_role_names}")
-    print(f"[PERMISSION DEBUG] User roles (IDs): {user_role_ids}")
-    
-    # Fetch roles by name from environment
-    print(f"[PERMISSION DEBUG] Looking for admin role: '{ADMIN_ROLE_NAME}'")
-    print(f"[PERMISSION DEBUG] Looking for manager role: '{MANAGER_ROLE_NAME}'")
-    
-    admin_role = discord.utils.get(guild.roles, name=ADMIN_ROLE_NAME)
-    manager_role = discord.utils.get(guild.roles, name=MANAGER_ROLE_NAME)
-    
-    print(f"[PERMISSION DEBUG] Admin role found in guild: {admin_role is not None}")
-    if admin_role:
-        print(f"[PERMISSION DEBUG] Admin role ID: {admin_role.id}")
-    
-    print(f"[PERMISSION DEBUG] Manager role found in guild: {manager_role is not None}")
-    if manager_role:
-        print(f"[PERMISSION DEBUG] Manager role ID: {manager_role.id}")
-    
-    has_annaway_admin_role = admin_role in user.roles if admin_role else False
-    has_annaway_manager_role = manager_role in user.roles if manager_role else False
-    
-    print(f"[PERMISSION DEBUG] has_annaway_admin_role: {has_annaway_admin_role}")
-    print(f"[PERMISSION DEBUG] has_annaway_manager_role: {has_annaway_manager_role}")
-    
-    # Determine if user is global admin or manager
-    is_global_admin = has_annaway_admin_role
-    is_manager = has_annaway_admin_role or has_annaway_manager_role
-    
-    print(f"[PERMISSION DEBUG] is_global_admin: {is_global_admin}")
-    print(f"[PERMISSION DEBUG] is_manager: {is_manager}")
-    
-    # Admin-only actions: must be Annaway_Admin
-    if admin_only:
-        if is_global_admin:
-            print(f"[PERMISSION DEBUG] ✅ ALLOWED - Admin-only action, user is global admin")
-            print(f"[PERMISSION DEBUG] ========================================")
-            return True
-        print(f"[PERMISSION DEBUG] ❌ DENIED - Admin-only action, user is not global admin")
-        print(f"[PERMISSION DEBUG] ========================================")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
-            else:
-                await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
-        except Exception as e:
-            print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
-        return False
-    
-    # Manager-level actions: Annaway_Admin OR Annaway_Manager
-    if is_manager:
-        print(f"[PERMISSION DEBUG] ✅ ALLOWED - Manager-level action, user is manager or admin")
-        print(f"[PERMISSION DEBUG] ========================================")
-        return True
-    
-    print(f"[PERMISSION DEBUG] ❌ DENIED - Manager-level action, user is neither manager nor admin")
-    print(f"[PERMISSION DEBUG] ========================================")
+    # CRITICAL: 立即寫入 debug log 到檔案，確認函式被執行
     try:
-        if not interaction.response.is_done():
-            await interaction.response.send_message(ERROR_MESSAGE, ephemeral=True)
-        else:
-            await interaction.followup.send(ERROR_MESSAGE, ephemeral=True)
+        import datetime
+        with open("permission_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"\n[{datetime.datetime.now()}] check_permission CALLED\n")
+            f.flush()
     except Exception as e:
-        print(f"[PERMISSION DEBUG] Error sending permission error: {e}")
-    return False
+        print(f"ERROR writing debug log: {e}")
+    
+    user = interaction.user
+    guild = interaction.guild
+    
+    # 私訊或沒有 guild 的情況，一律擋掉
+    if guild is None:
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    PERMISSION_ERROR_MESSAGE, ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    PERMISSION_ERROR_MESSAGE, ephemeral=True
+                )
+        except Exception:
+            pass
+        return False
+    
+    # --- 1. 取得角色物件 ---
+    admin_role_name = "Annaway_Admin"
+    manager_role_name = "Annaway_Manager"
+    
+    admin_role = discord.utils.get(guild.roles, name=admin_role_name)
+    manager_role = discord.utils.get(guild.roles, name=manager_role_name)
+    
+    has_admin_role = admin_role in user.roles if admin_role else False
+    has_manager_role = manager_role in user.roles if manager_role else False
+    
+    # --- 2. 查 DB，看是不是「全域管理員」(is_initial = 1) ---
+    is_global_admin_db = False
+    try:
+        conn = sqlite3.connect("db/settings.sqlite")
+        cur = conn.cursor()
+        cur.execute("SELECT is_initial FROM admin WHERE id = ?", (user.id,))
+        row = cur.fetchone()
+        is_global_admin_db = bool(row and row[0] == 1)
+        conn.close()
+    except Exception as e:
+        print(f"[PERMISSION DEBUG] DB error in check_permission: {e}")
+    
+    # --- 3. 判斷是否允許 ---
+    if admin_only:
+        # Admin-only: 需要 Annaway_Admin 或 DB is_initial=1
+        allowed = has_admin_role or is_global_admin_db
+    else:
+        # Manager 級：Admin / Manager / 全域管理員 都可以
+        allowed = has_admin_role or has_manager_role or is_global_admin_db
+    
+    # --- 4. Debug log（方便排錯）---
+    custom_id = "unknown"
+    try:
+        custom_id = interaction.data.get("custom_id", "unknown")
+    except Exception:
+        pass
+    
+    # 寫入完整 debug log 到檔案
+    try:
+        with open("permission_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"\n========================================\n")
+            f.write(f"custom_id: {custom_id}\n")
+            f.write(f"admin_only: {admin_only}\n")
+            f.write(f"user.id: {user.id}\n")
+            f.write(f"user.name: {user.name}\n")
+            f.write(f"guild.id: {guild.id}\n")
+            f.write(f"guild.name: {guild.name}\n")
+            f.write(f"User roles (names): {[r.name for r in user.roles]}\n")
+            f.write(f"has_admin_role: {has_admin_role}\n")
+            f.write(f"has_manager_role: {has_manager_role}\n")
+            f.write(f"is_global_admin (DB is_initial): {is_global_admin_db}\n")
+            f.write(f"allowed: {allowed}\n")
+            f.flush()
+    except Exception as e:
+        print(f"ERROR writing full debug log: {e}")
+    
+    if not allowed:
+        try:
+            with open("permission_debug.log", "a", encoding="utf-8") as f:
+                f.write(f"❌ DENIED - insufficient permission\n")
+                f.write(f"========================================\n")
+                f.flush()
+        except Exception:
+            pass
+        
+        # 統一錯誤訊息出口：確保先 defer 再發送
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    PERMISSION_ERROR_MESSAGE,
+                    ephemeral=True,
+                )
+            else:
+                await interaction.followup.send(
+                    PERMISSION_ERROR_MESSAGE,
+                    ephemeral=True,
+                )
+        except discord.InteractionResponded:
+            # Already responded, try followup
+            try:
+                await interaction.followup.send(PERMISSION_ERROR_MESSAGE, ephemeral=True)
+            except Exception as e2:
+                print(f"[PERMISSION DEBUG] error in followup: {e2}")
+        except Exception as e:
+            print(f"[PERMISSION DEBUG] error while sending permission error: {e}")
+        return False
+    
+    try:
+        with open("permission_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"✅ ALLOWED\n")
+            f.write(f"========================================\n")
+            f.flush()
+    except Exception:
+        pass
+    
+    return True
 
 
 def requires_annaway_role(admin_only: bool = False):

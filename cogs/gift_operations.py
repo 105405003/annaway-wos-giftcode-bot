@@ -2176,17 +2176,7 @@ class GiftOperations(commands.Cog):
     async def show_ocr_settings(self, interaction: discord.Interaction):
             """Show OCR settings menu."""
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                admin_info = self.settings_cursor.fetchone()
-
-                if not admin_info or admin_info[0] != 1:
-                    error_msg = "❌ You don't have permission to access OCR settings."
-                    if interaction.response.is_done():
-                        await interaction.followup.send(error_msg, ephemeral=True)
-                    else:
-                        await interaction.response.send_message(error_msg, ephemeral=True)
-                    return
-
+                # Permission already checked by check_permission in button callback
                 self.settings_cursor.execute("SELECT enabled, save_images FROM ocr_settings ORDER BY id DESC LIMIT 1")
                 ocr_settings = self.settings_cursor.fetchone()
 
@@ -2785,15 +2775,24 @@ class GiftOperations(commands.Cog):
             )
             
             view = SimplifiedGiftView(self)
-            # Use edit_original_response since we deferred
-            await interaction.edit_original_response(embed=embed, view=view)
+            
+            # 優先嘗試編輯 original response
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，就用 followup
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
         except Exception as e:
             print(f"Error in show_gift_menu: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    _('error_occurred_try_again', 'ERRORS'),
-                    ephemeral=True
-                )
+            error_msg = _('error_occurred_try_again', 'ERRORS')
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+                else:
+                    await interaction.followup.send(error_msg, ephemeral=True)
+            except Exception:
+                pass
 
     async def test_gift_code(self, interaction: discord.Interaction):
         """測試禮品碼功能"""
@@ -2802,14 +2801,7 @@ class GiftOperations(commands.Cog):
 
 
     async def create_gift_code(self, interaction: discord.Interaction):
-        self.settings_cursor.execute("SELECT 1 FROM admin WHERE id = ?", (interaction.user.id,))
-        if not self.settings_cursor.fetchone():
-            await interaction.response.send_message(
-                _("not_authorized", "GIFT_CODE"),
-                ephemeral=True
-            )
-            return
-
+        # Permission already checked by check_permission in button callback
         modal = CreateGiftCodeModal(self)
         try:
             await interaction.response.send_modal(modal)

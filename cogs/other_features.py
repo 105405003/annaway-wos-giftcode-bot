@@ -37,16 +37,24 @@ class OtherFeatures(commands.Cog):
             
             view = OtherFeaturesView(self)
             
-            # Use edit_original_response since we deferred
-            await interaction.edit_original_response(embed=embed, view=view)
+            # 優先嘗試編輯 original response
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，就用 followup
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
                 
         except Exception as e:
-            print(f"Error in show_other_features_menu: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    _('error_occurred_try_again', 'ERRORS'),
-                    ephemeral=True
-                )
+            if not any(code in str(e) for code in ["10062", "40060"]):
+                print(f"Other features error: {e}")
+            error_msg = "An error occurred while loading Other Features menu."
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+                else:
+                    await interaction.followup.send(error_msg, ephemeral=True)
+            except Exception:
+                pass
 
 class OtherFeaturesView(discord.ui.View):
     def __init__(self, cog):

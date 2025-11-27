@@ -71,14 +71,18 @@ class BotOperations(commands.Cog):
             return
         
         # Centralized permission gating for bot operation buttons
-        # Move all buttons to manager_ids for debugging
-        admin_only_ids = set()
+        admin_only_ids = {
+            "add_admin",
+            "remove_admin",
+            "transfer_old_database",
+            "check_updates",
+            "view_administrators",
+            "view_admin_permissions",
+        }
         
         manager_ids = {
             "alliance_control_messages",
             "assign_alliance",
-            "add_admin",
-            "remove_admin",
             "bot_status",
             "bot_settings",
             "main_menu",
@@ -368,16 +372,7 @@ class BotOperations(commands.Cog):
                             pass
                 elif custom_id == "add_admin":
                     try:
-                        self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                        result = self.settings_cursor.fetchone()
-                        
-                        if not result or result[0] != 1:
-                            await interaction.response.send_message(
-                                "❌ Only global administrators can use this command", 
-                                ephemeral=True
-                            )
-                            return
-
+                        # Permission already checked above (admin_only_ids)
                         await interaction.response.send_message(
                             "Please tag the admin you want to add (@user).", 
                             ephemeral=True
@@ -431,16 +426,7 @@ class BotOperations(commands.Cog):
 
                 elif custom_id == "remove_admin":
                     try:
-                        self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                        result = self.settings_cursor.fetchone()
-                        
-                        if not result or result[0] != 1:
-                            await interaction.response.send_message(
-                                "❌ Only global administrators can use this command.", 
-                                ephemeral=True
-                            )
-                            return
-
+                        # Permission already checked above (admin_only_ids)
                         self.settings_cursor.execute("""
                             SELECT id, is_initial FROM admin 
                             ORDER BY is_initial DESC, id
@@ -674,18 +660,10 @@ class BotOperations(commands.Cog):
 
         elif custom_id == "view_admin_permissions":
             try:
+                # Permission already checked above (admin_only_ids)
                 with sqlite3.connect('db/settings.sqlite') as settings_db:
                     cursor = settings_db.cursor()
-                    cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                    result = cursor.fetchone()
                     
-                    if not result or result[0] != 1:
-                        await interaction.response.send_message(
-                            "❌ Only global administrators can use this command.", 
-                            ephemeral=True
-                        )
-                        return
-
                     with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                         alliance_cursor = alliance_db.cursor()
                         
@@ -860,16 +838,7 @@ class BotOperations(commands.Cog):
 
         elif custom_id == "view_administrators":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can use this command.", 
-                        ephemeral=True
-                    )
-                    return
-
+                # Permission already checked above (admin_only_ids)
                 self.settings_cursor.execute("""
                     SELECT a.id, a.is_initial 
                     FROM admin a
@@ -968,16 +937,7 @@ class BotOperations(commands.Cog):
 
         elif custom_id == "transfer_old_database":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can use this command.", 
-                        ephemeral=True
-                    )
-                    return
-
+                # Permission already checked above (admin_only_ids)
                 database_cog = self.bot.get_cog('DatabaseTransfer')
                 if database_cog:
                     await database_cog.transfer_old_database(interaction)
@@ -997,14 +957,11 @@ class BotOperations(commands.Cog):
 
         elif custom_id == "check_updates":
             try:
-                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
-                result = self.settings_cursor.fetchone()
-                
-                if not result or result[0] != 1:
-                    await interaction.response.send_message(
-                        "❌ Only global administrators can use this command.", 
-                        ephemeral=True
-                    )
+                # Permission already checked above (admin_only_ids)
+                await interaction.response.send_message(
+                    "❌ Update checking is disabled in this fork.", 
+                    ephemeral=True
+                )
                     return
 
                 current_version, new_version, update_notes, updates_needed = await self.check_for_updates()
