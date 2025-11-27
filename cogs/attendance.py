@@ -1818,11 +1818,17 @@ class Attendance(commands.Cog):
             is_initial = admin_result[0]
             
             # Get alliances based on permissions
+            # Multi-guild isolation: even global admins see only current guild
+            guild_id = interaction.guild.id if interaction.guild else None
+            
             if is_initial == 1:
-                # Global admin - get all alliances
+                # Global admin - get all alliances FOR CURRENT GUILD
                 with sqlite3.connect('db/alliance.sqlite') as db:
                     cursor = db.cursor()
-                    cursor.execute("SELECT alliance_id, name FROM alliance_list ORDER BY alliance_id")
+                    if guild_id:
+                        cursor.execute("SELECT alliance_id, name FROM alliance_list WHERE discord_server_id = ? ORDER BY alliance_id", (guild_id,))
+                    else:
+                        cursor.execute("SELECT alliance_id, name FROM alliance_list WHERE discord_server_id = -1 ORDER BY alliance_id")
                     alliances = cursor.fetchall()
             else:
                 # Non-global admin - get alliances from adminserver
@@ -1836,8 +1842,13 @@ class Attendance(commands.Cog):
                     with sqlite3.connect('db/alliance.sqlite') as db:
                         cursor = db.cursor()
                         placeholders = ','.join('?' * len(allowed_alliances))
-                        cursor.execute(f"SELECT alliance_id, name FROM alliance_list WHERE alliance_id IN ({placeholders}) ORDER BY alliance_id", 
-                                     list(allowed_alliances))
+                        # Filter by both allowed alliances AND current guild
+                        if guild_id:
+                            cursor.execute(f"SELECT alliance_id, name FROM alliance_list WHERE alliance_id IN ({placeholders}) AND discord_server_id = ? ORDER BY alliance_id", 
+                                         list(allowed_alliances) + [guild_id])
+                        else:
+                            cursor.execute(f"SELECT alliance_id, name FROM alliance_list WHERE alliance_id IN ({placeholders}) AND discord_server_id = -1 ORDER BY alliance_id", 
+                                         list(allowed_alliances))
                         alliances = cursor.fetchall()
                 else:
                     alliances = []

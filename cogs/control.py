@@ -12,6 +12,7 @@ from logging.handlers import RotatingFileHandler
 from .login_handler import LoginHandler
 from i18n_manager import i18n, _
 from permission_manager import permission_manager, PermissionLevel
+from utils.permissions import requires_annaway_role
 
 level_mapping = {
     31: "30-1", 32: "30-2", 33: "30-3", 34: "30-4",
@@ -751,6 +752,7 @@ class Control(commands.Cog):
             raise
 
     @app_commands.command(name="update_members", description="手動更新所有成員資訊 (管理員權限)")
+    @requires_annaway_role()
     async def manual_update_members(self, interaction: discord.Interaction):
         """
         手動更新所有成員資訊

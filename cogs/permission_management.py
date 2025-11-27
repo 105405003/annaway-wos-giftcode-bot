@@ -316,11 +316,18 @@ class PermissionManagement(commands.Cog):
                 )
                 return
             
-            # 獲取聯盟名稱
-            self.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
-            )
+            # 獲取聯盟名稱 (guild-aware)
+            guild_id = interaction.guild.id if interaction.guild else None
+            if guild_id:
+                self.c_alliance.execute(
+                    "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                    (alliance_id, guild_id)
+                )
+            else:
+                self.c_alliance.execute(
+                    "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = -1",
+                    (alliance_id,)
+                )
             result = self.c_alliance.fetchone()
             alliance_name = result[0] if result else f"聯盟 {alliance_id}"
             

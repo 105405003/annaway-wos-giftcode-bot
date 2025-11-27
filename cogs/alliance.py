@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 from i18n_manager import i18n, _
 from permission_manager import permission_manager, PermissionLevel
+from utils.permissions import requires_annaway_role, requires_annaway_role_button
 
 class AllianceModal(discord.ui.Modal):
     def __init__(self, title: str, default_name: str = "", default_interval: str = "0"):
@@ -69,6 +70,7 @@ class Alliance(commands.Cog):
             self.c.execute("ALTER TABLE alliance_list ADD COLUMN discord_server_id INTEGER")
             self.conn.commit()
 
+    @requires_annaway_role()
     async def view_alliances(self, interaction: discord.Interaction):
         
         if interaction.guild is None:
@@ -141,6 +143,7 @@ class Alliance(commands.Cog):
         ][:25]
 
     @app_commands.command(name="settings", description=_("open_settings_menu", "SETTINGS"))
+    @requires_annaway_role()
     async def settings(self, interaction: discord.Interaction):
         """Slash command entry point for settings"""
         await self._show_settings_menu(interaction, from_button=False)
@@ -912,6 +915,7 @@ class Alliance(commands.Cog):
                         ephemeral=True
                     )
 
+    @requires_annaway_role(admin_only=True)
     async def add_alliance(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message(_("command_server_only", "ERRORS"), ephemeral=True)
@@ -989,6 +993,7 @@ class Alliance(commands.Cog):
             )
             await modal_interaction.response.send_message(embed=error_embed, ephemeral=True)
 
+    @requires_annaway_role(admin_only=True)
     async def edit_alliance(self, interaction: discord.Interaction):
         try:
             self.c.execute("""
@@ -1224,6 +1229,7 @@ class Alliance(commands.Cog):
             )
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
 
+    @requires_annaway_role(admin_only=True)
     async def delete_alliance(self, interaction: discord.Interaction):
         try:
             # ✨ A1 FIX: 只顯示當前 guild 的聯盟供刪除

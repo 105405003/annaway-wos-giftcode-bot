@@ -63,11 +63,11 @@ class GNCommands(commands.Cog):
                     )
 
                     status_embed.add_field(
-                        name=_('community_support', 'BOT_STATUS'),
+                        name="Annaway WOS Bot",
                         value=(
-                            f"**{_('github_repository', 'BOT_STATUS')}:** [Whiteout Project](https://github.com/whiteout-project/bot)\n"
-                            f"**{_('discord_community', 'BOT_STATUS')}:** [Join our Discord](https://discord.gg/apYByj6K2m)\n"
-                            f"**{_('bug_reports', 'BOT_STATUS')}:** [GitHub Issues](https://github.com/whiteout-project/bot/issues)\n"
+                            f"**Bot Version:** Annaway Custom Fork\n"
+                            f"**Maintained by:** Annaway Studio\n"
+                            f"**Multi-Guild Support:** Enabled\n"
                             f"{_('status_separator', 'BOT_STATUS')}"
                         ),
                         inline=False

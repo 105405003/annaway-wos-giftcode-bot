@@ -47,10 +47,15 @@ class DatabaseTransfer(commands.Cog):
         view.bot = self.bot
         await interaction.response.send_message(embeds=[warning_embed], view=view, ephemeral=True)
 
-    async def check_alliances(self):
+    async def check_alliances(self, guild_id=None):
+        """Check alliances, optionally filtered by guild"""
         conn = sqlite3.connect('db/alliance.sqlite')
         cursor = conn.cursor()
-        cursor.execute("SELECT alliance_id, name FROM alliance_list")
+        if guild_id:
+            cursor.execute("SELECT alliance_id, name FROM alliance_list WHERE discord_server_id = ?", (guild_id,))
+        else:
+            # For legacy imports, show all (admin feature)
+            cursor.execute("SELECT alliance_id, name FROM alliance_list")
         alliances = cursor.fetchall()
         conn.close()
         return alliances

@@ -4,6 +4,7 @@ from discord import app_commands
 import sqlite3
 import asyncio
 from i18n_manager import i18n, _
+from utils.permissions import requires_annaway_role, requires_annaway_role_button
 from .login_handler import LoginHandler
 
 class AllianceMemberOperations(commands.Cog):
@@ -56,10 +57,20 @@ class AllianceMemberOperations(commands.Cog):
             
             fid = int(oper2)
             
-            # 搜尋聯盟（支援模糊匹配）
+            # Get guild context for multi-guild isolation
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    "❌ This command can only be used in a server.",
+                    ephemeral=True
+                )
+                return
+            
+            guild_id = interaction.guild.id
+            
+            # 搜尋聯盟（支援模糊匹配）- filter by current guild
             self.c_alliance.execute(
-                "SELECT alliance_id, name FROM alliance_list WHERE name LIKE ? OR alliance_id = ?",
-                (f"%{oper1}%", oper1)
+                "SELECT alliance_id, name FROM alliance_list WHERE (name LIKE ? OR alliance_id = ?) AND discord_server_id = ?",
+                (f"%{oper1}%", oper1, guild_id)
             )
             results = self.c_alliance.fetchall()
             
