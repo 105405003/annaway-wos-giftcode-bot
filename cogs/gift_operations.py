@@ -2769,7 +2769,10 @@ class GiftOperations(commands.Cog):
                     f"{_('separator', 'OTHER_FEATURES')}\n"
                     f"🎁 **{_('add_gift_code', 'GIFT_CODE')}**\n"
                     f"└ {_('add_gift_code_description', 'GIFT_CODE')}\n"
-                    f"{_('separator', 'OTHER_FEATURES')}"
+                    f"{_('separator', 'OTHER_FEATURES')}\n\n"
+                    f"⏰ **更新時間**\n"
+                    f"└ 禮品碼每日更新：00:00 與 12:00 UTC\n"
+                    f"└ (台灣時間 08:00 與 20:00)"
                 ),
                 color=discord.Color.gold()
             )
@@ -2852,29 +2855,7 @@ class GiftOperations(commands.Cog):
 
     async def delete_gift_code(self, interaction: discord.Interaction):
         try:
-            settings_conn = sqlite3.connect('db/settings.sqlite')
-            settings_cursor = settings_conn.cursor()
-            
-            settings_cursor.execute("""
-                SELECT 1 FROM admin 
-                WHERE id = ? AND is_initial = 1
-            """, (interaction.user.id,))
-            
-            is_admin = settings_cursor.fetchone()
-            settings_cursor.close()
-            settings_conn.close()
-
-            if not is_admin:
-                await interaction.response.send_message(
-                    embed=discord.Embed(
-                        title="❌ Unauthorized Access",
-                        description="This action requires Global Admin privileges.",
-                        color=discord.Color.red()
-                    ),
-                    ephemeral=True
-                )
-                return
-
+            # Permission already checked by check_permission / decorator
             self.cursor.execute("""
                 SELECT 
                     gc.giftcode,

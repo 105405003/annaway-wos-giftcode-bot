@@ -9,6 +9,7 @@ import pyzipper
 import shutil
 import traceback
 from i18n_manager import i18n, _
+from utils.permissions import check_permission
 
 class BackupOperations(commands.Cog):
     def __init__(self, bot):
@@ -154,8 +155,8 @@ class BackupOperations(commands.Cog):
         return result is not None and result[0] == 1
 
     async def show_backup_menu(self, interaction: discord.Interaction):
-        if not await self.is_global_admin(interaction.user.id):
-            await interaction.response.send_message("❌ This menu is only available for Global Admins!", ephemeral=True)
+        # Permission checked by check_permission / decorator
+        if not await check_permission(interaction, admin_only=True):
             return
 
         # Get system info

@@ -333,9 +333,9 @@ class MinisterSettingsView(discord.ui.View):
     
     @discord.ui.button(label="Update Names", style=discord.ButtonStyle.secondary, emoji="📝")
     async def update_names(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check if user is admin
-        if not await self.cog.is_admin(interaction.user.id):
-            await interaction.response.send_message("❌ You do not have permission to update names.", ephemeral=True)
+        # Permission checked by check_permission
+        from utils.permissions import check_permission
+        if not await check_permission(interaction, admin_only=False):
             return
         
         await self.cog.show_activity_selection_for_update(interaction)

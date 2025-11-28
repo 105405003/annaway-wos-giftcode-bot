@@ -49,6 +49,36 @@ python main.py
 - 🔐 Simple role-based permissions
 - 🌍 Multi-guild data isolation
 
+## ⏰ Gift Code Refresh Schedule
+
+Gift codes are refreshed **twice per day**:
+
+- **00:00 UTC** (08:00 Taiwan time / UTC+8)
+- **12:00 UTC** (20:00 Taiwan time / UTC+8)
+
+The bot automatically validates and updates gift code status at these times.
+
+## 🧹 Maintenance
+
+### Cleaning Temporary ZIP Files on Server
+
+After multiple deployments, temporary ZIP files may accumulate on the VM. To clean them:
+
+```bash
+# Remove ZIP files from home directory
+find ~ -maxdepth 2 -type f -name "wos_bot*.zip" -delete
+find ~ -maxdepth 2 -type f -name "hotfix*.zip" -delete
+
+# Remove ZIP files from bot directory
+find ~/wos_bot -type f -name "*.zip" -delete
+```
+
+**Note:** Always keep a backup of your database before cleaning or updating:
+
+```bash
+cp -r ~/wos_bot/db/ ~/wos_bot_backup_$(date +%Y%m%d)/
+```
+
 ## Migration from Original
 
 If you're upgrading from the original bot:

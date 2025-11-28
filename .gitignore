@@ -23,6 +23,7 @@ db/*.sqlite-wal
 # Logs
 log/
 *.log
+permission_debug.log
 
 # Backups & Temporary Files
 backups/
@@ -31,6 +32,11 @@ db.bak/
 main.py.bak
 update/
 *.zip
+wos_bot*.zip
+hotfix*.zip
+update_files*.zip
+final_fix*.zip
+A1_deployment*.zip
 *.bak
 *.tmp
 pack_output.txt
