@@ -1,0 +1,123 @@
+🚀 WOS Giftcode Bot 部署指令
+
+檔案：complete.zip (629 KB)
+版本：Production Ready (2025-11-28)
+
+═══════════════════════════════════════
+第一步：上傳檔案
+═══════════════════════════════════════
+
+使用 Google Cloud Console 的 SSH 上傳功能上傳 complete.zip
+
+
+═══════════════════════════════════════
+第二步：在 VM 上執行（複製貼上即可）
+═══════════════════════════════════════
+
+sudo systemctl stop wos-bot
+cp -r ~/wos_bot/db/ ~/wos_bot_backup_$(date +%Y%m%d_%H%M%S)/
+cd ~/wos_bot
+unzip -o ~/complete.zip
+sudo chown -R anna_c:anna_c ~/wos_bot
+find ~/wos_bot -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
+find ~/wos_bot -type f -name "*.pyc" -delete
+sudo systemctl start wos-bot
+
+
+═══════════════════════════════════════
+第三步：驗證
+═══════════════════════════════════════
+
+sudo systemctl status wos-bot
+sudo journalctl -u wos-bot -f
+
+
+═══════════════════════════════════════
+第四步：在 Discord 測試
+═══════════════════════════════════════
+
+使用 Annaway_Manager 角色：
+1. 執行 /settings
+2. 點擊「成員操作」
+3. 點擊「新增成員」
+4. 點擊「禮品碼操作」（應該看到更新時間）
+
+✅ 所有功能應該第一次點擊就成功
+❌ 不應該看到「沒有權限」錯誤
+
+
+═══════════════════════════════════════
+第五步：查看權限 debug log
+═══════════════════════════════════════
+
+cat ~/wos_bot/permission_debug.log | tail -50
+
+應該看到：
+- has_manager_role: True
+- allowed: True
+- ✅ ALLOWED
+
+
+═══════════════════════════════════════
+第六步：清理舊檔案（可選）
+═══════════════════════════════════════
+
+chmod +x ~/wos_bot/cleanup_gcp_vm.sh
+~/wos_bot/cleanup_gcp_vm.sh
+
+或手動清理：
+find ~ -maxdepth 2 -type f -name "wos_bot*.zip" -delete
+ls -t ~/wos_bot_backup_* | tail -n +4 | xargs rm -rf
+
+
+═══════════════════════════════════════
+⏰ 禮品碼更新時間
+═══════════════════════════════════════
+
+Whiteout Survival 禮品碼更新時間：
+- 00:00 UTC = 08:00 台灣時間
+- 12:00 UTC = 20:00 台灣時間
+
+Bot 會自動在這些時間驗證禮品碼。
+
+
+═══════════════════════════════════════
+📚 完整文件
+═══════════════════════════════════════
+
+- README_DEPLOY_TW.md - 繁體中文完整部署說明
+- QUICK_DEPLOY.md - 快速部署指南（英文）
+- TESTING_GUIDE.md - 完整測試流程
+- DEPLOYMENT.md - 詳細部署流程
+
+
+═══════════════════════════════════════
+✅ 驗收標準
+═══════════════════════════════════════
+
+Manager 角色：
+✅ 四個主要按鈕全部可用（成員/禮品碼/歷史/其他）
+✅ 第一次點擊就成功
+✅ 沒有「沒有權限」錯誤
+✅ 沒有「Unknown interaction」錯誤
+
+Admin 角色：
+✅ 所有功能都可用
+
+普通使用者：
+✅ 被統一阻擋
+
+
+═══════════════════════════════════════
+🎉 完成！
+═══════════════════════════════════════
+
+所有重構項目已完成：
+✅ 權限系統統一
+✅ Interaction 流程修正
+✅ 角色行為正確
+✅ 專案清理完成
+✅ 文件完整
+
+專案現在可以安全部署到生產環境！
+
