@@ -152,15 +152,8 @@ class Alliance(commands.Cog):
     async def _show_settings_menu(self, interaction: discord.Interaction, from_button: bool = False):
         """Internal method to show settings menu - handles both slash command and button interactions"""
         try:
-            # 暫時移除嚴格的 Administrator 檢查，改為更寬鬆的權限檢查
-            if interaction.guild is not None:
-                perm_check = interaction.guild.get_member(interaction.client.user.id)
-                if perm_check and not perm_check.guild_permissions.manage_guild:
-                    await interaction.response.send_message(
-                        _("bot_needs_admin_permission", "ERRORS"), 
-                        ephemeral=True
-                    )
-                    return
+            # 機器人不需要 manage_guild 權限，只需要基本的發送訊息權限
+            # 權限控制已透過 Annaway_Admin/Manager 角色實現
             
             # 確保 interaction.user 是 Member 類型（在伺服器中）
             member = interaction.user if isinstance(interaction.user, discord.Member) else interaction.guild.get_member(interaction.user.id) if interaction.guild else interaction.user
@@ -954,8 +947,9 @@ class Alliance(commands.Cog):
             alliance_name = modal.name.value.strip()
             interval = int(modal.interval.value.strip())
 
-            # 檢查聯盟名稱是否已存在
-            self.c.execute("SELECT alliance_id FROM alliance_list WHERE name = ?", (alliance_name,))
+            # 檢查聯盟名稱是否已存在（同 guild 內）
+            guild_id = interaction.guild.id if interaction.guild else -1
+            self.c.execute("SELECT alliance_id FROM alliance_list WHERE name = ? AND discord_server_id = ?", (alliance_name, guild_id))
             existing_alliance = self.c.fetchone()
             
             if existing_alliance:
@@ -1143,8 +1137,9 @@ class Alliance(commands.Cog):
                         alliance_name = modal.name.value.strip()
                         interval = int(modal.interval.value.strip())
 
-                        # 檢查聯盟名稱是否已存在且不是當前聯盟
-                        self.c.execute("SELECT alliance_id FROM alliance_list WHERE name = ? AND alliance_id != ?", (alliance_name, alliance_id))
+                        # 檢查聯盟名稱是否已存在且不是當前聯盟（同 guild 內）
+                        guild_id = interaction.guild.id if interaction.guild else -1
+                        self.c.execute("SELECT alliance_id FROM alliance_list WHERE name = ? AND alliance_id != ? AND discord_server_id = ?", (alliance_name, alliance_id, guild_id))
                         existing_alliance = self.c.fetchone()
                         
                         if existing_alliance:
@@ -1322,12 +1317,14 @@ class Alliance(commands.Cog):
     async def alliance_delete_callback(self, interaction: discord.Interaction):
         try:
             alliance_id = int(interaction.data["values"][0])
+            guild_id = interaction.guild.id if interaction.guild else -1
             
-            self.c.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (alliance_id,))
+            # 確保聯盟屬於當前 guild
+            self.c.execute("SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?", (alliance_id, guild_id))
             alliance_data = self.c.fetchone()
             
             if not alliance_data:
-                await interaction.response.send_message("找不到聯盟", ephemeral=True)
+                await interaction.response.send_message("找不到聯盟或您無權刪除此聯盟", ephemeral=True)
                 return
             
             alliance_name = alliance_data[0]

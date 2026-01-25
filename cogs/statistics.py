@@ -397,13 +397,17 @@ class Statistics(commands.Cog):
     async def generate_furnace_distribution_for_alliance(self, interaction, alliance_id):
         """生成特定聯盟的熔爐等級分佈"""
         try:
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             self.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             result = self.c_alliance.fetchone()
-            alliance_name = result[0] if result else f"聯盟 {alliance_id}"
+            if not result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                return
+            alliance_name = result[0]
             
             # 獲取成員等級分佈
             self.c_users.execute("""
@@ -484,13 +488,17 @@ class Statistics(commands.Cog):
     async def generate_alliance_detail_report(self, interaction, alliance_id):
         """生成詳細聯盟報表"""
         try:
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             self.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             result = self.c_alliance.fetchone()
-            alliance_name = result[0] if result else f"聯盟 {alliance_id}"
+            if not result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                return
+            alliance_name = result[0]
             
             # 獲取成員統計
             self.c_users.execute("""

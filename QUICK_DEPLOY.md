@@ -66,19 +66,15 @@ tail -f ~/wos_bot/permission_debug.log
 
 1. **執行 `/settings`**
    - ✅ 應該看到主選單
-   
 2. **點擊「成員操作」**
    - ✅ 應該開啟成員操作選單
    - ✅ 點擊「新增成員」→ 選擇聯盟 → 應該彈出 Modal
    - ✅ 可以正常輸入並提交
-   
 3. **點擊「禮品碼操作」**
    - ✅ 應該看到主選單，包含更新時間說明
    - ✅ 顯示：「禮品碼每日更新：00:00 與 12:00 UTC (台灣時間 08:00 與 20:00)」
-   
 4. **點擊「聯盟歷史」**
    - ✅ 應該正常開啟
-   
 5. **點擊「其他功能」**
    - ✅ 應該正常開啟
 
@@ -90,7 +86,6 @@ tail -f ~/wos_bot/permission_debug.log
 
 1. **測試所有 Manager 功能**
    - ✅ 全部可用
-   
 2. **測試 Admin-only 功能**
    - ✅ 聯盟操作 → 新增/編輯/刪除聯盟
    - ✅ Bot 操作 → 新增/移除管理員
@@ -135,6 +130,7 @@ allowed: True
 ### 如果看到 `❌ DENIED`：
 
 檢查角色設定：
+
 ```bash
 # 在 Discord 中：
 # 1. 伺服器設定 → 角色
@@ -190,9 +186,11 @@ python main.py
 ### Q: 看到 "Unknown interaction" 錯誤
 
 **可能原因：**
+
 - 舊的 `.pyc` 檔案沒有更新
 
 **解決方案：**
+
 ```bash
 # 清理 Python 快取
 find ~/wos_bot -type d -name __pycache__ -exec rm -rf {} +
@@ -205,6 +203,7 @@ sudo systemctl restart wos-bot
 ### Q: Manager 還是被擋住
 
 **檢查：**
+
 ```bash
 # 1. 確認角色名稱
 # 在 Discord 中檢查角色是否完全是 "Annaway_Manager"
@@ -273,12 +272,13 @@ sudo systemctl start wos-bot
 如果所有測試都通過，恭喜！Bot 已經成功部署並運行正常。
 
 **建議：**
+
 - 定期備份資料庫（每週一次）
 - 定期清理舊的 ZIP 和備份檔案（每月一次）
 - 監控 `permission_debug.log` 檔案大小
 - 關注 Discord API 的變更
 
 **問題回報：**
+
 - 如果發現任何問題，請查看 `TESTING_GUIDE.md` 中的故障排除章節
 - 保留 `permission_debug.log` 和 `journalctl` 日誌以便分析
-

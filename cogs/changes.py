@@ -334,10 +334,15 @@ class Changes(commands.Cog):
 
     async def show_member_list_nickname(self, interaction: discord.Interaction, alliance_id: int):
         try:
+            guild_id = interaction.guild.id if interaction.guild else -1
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                 cursor = alliance_db.cursor()
-                cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (alliance_id,))
-                alliance_name = cursor.fetchone()[0]
+                cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?", (alliance_id, guild_id))
+                result = cursor.fetchone()
+                if not result:
+                    await interaction.response.send_message("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                    return
+                alliance_name = result[0]
 
             with sqlite3.connect('db/users.sqlite') as users_db:
                 cursor = users_db.cursor()
@@ -384,9 +389,10 @@ class Changes(commands.Cog):
 
     async def show_recent_changes(self, interaction: discord.Interaction, alliance_name: str, hours: int):
         try:
+            guild_id = interaction.guild.id if interaction.guild else -1
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                 cursor = alliance_db.cursor()
-                cursor.execute("SELECT alliance_id FROM alliance_list WHERE name = ?", (alliance_name,))
+                cursor.execute("SELECT alliance_id FROM alliance_list WHERE name = ? AND discord_server_id = ?", (alliance_name, guild_id))
                 alliance_id = cursor.fetchone()[0]
 
             with sqlite3.connect('db/users.sqlite') as users_db:
@@ -429,10 +435,15 @@ class Changes(commands.Cog):
 
     async def show_recent_nickname_changes(self, interaction: discord.Interaction, alliance_name: str, hours: int):
         try:
+            guild_id = interaction.guild.id if interaction.guild else -1
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                 cursor = alliance_db.cursor()
-                cursor.execute("SELECT alliance_id FROM alliance_list WHERE name = ?", (alliance_name,))
-                alliance_id = cursor.fetchone()[0]
+                cursor.execute("SELECT alliance_id FROM alliance_list WHERE name = ? AND discord_server_id = ?", (alliance_name, guild_id))
+                result = cursor.fetchone()
+                if not result:
+                    await interaction.followup.send("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                    return
+                alliance_id = result[0]
 
             with sqlite3.connect('db/users.sqlite') as users_db:
                 cursor = users_db.cursor()
@@ -623,10 +634,15 @@ class HistoryView(discord.ui.View):
                 )
                 return
 
+            guild_id = interaction.guild.id if interaction.guild else -1
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                 cursor = alliance_db.cursor()
-                cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (alliance_id,))
-                alliance_name = cursor.fetchone()[0]
+                cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?", (alliance_id, guild_id))
+                result = cursor.fetchone()
+                if not result:
+                    await interaction.response.send_message("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                    return
+                alliance_name = result[0]
 
             view = MemberListView(self.cog, members, alliance_name)
             

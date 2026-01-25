@@ -564,13 +564,17 @@ class AllianceSelectView(discord.ui.View):
                 )
                 return
             
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             cog.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             alliance_result = cog.c_alliance.fetchone()
-            alliance_name = alliance_result[0] if alliance_result else f"聯盟 {alliance_id}"
+            if not alliance_result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權查看", ephemeral=True)
+                return
+            alliance_name = alliance_result[0]
             
             # 獲取成員列表
             cog.c_users.execute(
@@ -616,13 +620,17 @@ class AllianceSelectView(discord.ui.View):
                 )
                 return
             
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             cog.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             alliance_result = cog.c_alliance.fetchone()
-            alliance_name = alliance_result[0] if alliance_result else f"聯盟 {alliance_id}"
+            if not alliance_result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權操作", ephemeral=True)
+                return
+            alliance_name = alliance_result[0]
             
             # 獲取成員列表
             cog.c_users.execute(
@@ -667,13 +675,17 @@ class AllianceSelectView(discord.ui.View):
                 )
                 return
             
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             cog.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             alliance_result = cog.c_alliance.fetchone()
-            alliance_name = alliance_result[0] if alliance_result else f"聯盟 {alliance_id}"
+            if not alliance_result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權操作", ephemeral=True)
+                return
+            alliance_name = alliance_result[0]
             
             # 獲取成員列表
             cog.c_users.execute(
@@ -718,13 +730,17 @@ class AllianceSelectView(discord.ui.View):
                 )
                 return
             
-            # 獲取聯盟名稱
+            # 獲取聯盟名稱（驗證 guild）
+            guild_id = interaction.guild.id if interaction.guild else -1
             cog.c_alliance.execute(
-                "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                (alliance_id,)
+                "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                (alliance_id, guild_id)
             )
             alliance_result = cog.c_alliance.fetchone()
-            alliance_name = alliance_result[0] if alliance_result else f"聯盟 {alliance_id}"
+            if not alliance_result:
+                await interaction.response.send_message("❌ 找不到聯盟或您無權操作", ephemeral=True)
+                return
+            alliance_name = alliance_result[0]
             
             # 獲取成員列表
             cog.c_users.execute(
@@ -1308,12 +1324,17 @@ class TargetAllianceSelectView(discord.ui.View):
                 self.cog.conn_users.commit()
                 print(f"[DEBUG] Database updated successfully")
                 
-                # 獲取目標聯盟名稱
+                # 獲取目標聯盟名稱（驗證 guild）
+                guild_id = interaction.guild.id if interaction.guild else -1
                 self.cog.c_alliance.execute(
-                    "SELECT name FROM alliance_list WHERE alliance_id = ?",
-                    (target_alliance_id,)
+                    "SELECT name FROM alliance_list WHERE alliance_id = ? AND discord_server_id = ?",
+                    (target_alliance_id, guild_id)
                 )
-                target_alliance_name = self.cog.c_alliance.fetchone()[0]
+                result = self.cog.c_alliance.fetchone()
+                if not result:
+                    await interaction.response.send_message("❌ 找不到目標聯盟", ephemeral=True)
+                    return
+                target_alliance_name = result[0]
                 print(f"[DEBUG] Target alliance name: {target_alliance_name}")
                 
                 embed = discord.Embed(

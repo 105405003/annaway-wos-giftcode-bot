@@ -2529,16 +2529,20 @@ class GiftOperations(commands.Cog):
             is_global: If True, return all alliances (admin only). Otherwise filter by guild.
             guild_id: Guild ID for filtering (required if not is_global)
         """
+        # ALWAYS filter by guild_id to maintain guild isolation
+        # Even global admins should only see current guild's alliances
+        if guild_id is None:
+            return []
+        
         if is_global:
-            # Global admins see all alliances (backward compat for now)
-            # TODO: Consider removing global admin concept for pure multi-guild
-            self.alliance_cursor.execute("SELECT name FROM alliance_list")
+            # Global admins see all alliances in THIS guild only
+            self.alliance_cursor.execute("""
+                SELECT name FROM alliance_list
+                WHERE discord_server_id = ?
+            """, (guild_id,))
             return [row[0] for row in self.alliance_cursor.fetchall()]
         else:
-            # For non-global, must filter by guild_id
-            if guild_id is None:
-                return []
-            
+            # Non-global admins: check adminserver for specific alliance assignments
             self.settings_cursor.execute("""
                 SELECT alliances_id FROM adminserver WHERE admin = ?
             """, (user_id,))
@@ -2609,10 +2613,12 @@ class GiftOperations(commands.Cog):
 
             if special_alliance_ids:
                 placeholders = ','.join('?' * len(special_alliance_ids))
+                # Filter by both alliance_id AND guild_id to prevent cross-guild leaks
                 self.alliance_cursor.execute(f"""
                     SELECT alliance_id, name FROM alliance_list 
                     WHERE alliance_id IN ({placeholders})
-                """, special_alliance_ids)
+                    AND discord_server_id = ?
+                """, special_alliance_ids + [guild_id])
                 special_alliances = self.alliance_cursor.fetchall()
             else:
                 special_alliances = []
