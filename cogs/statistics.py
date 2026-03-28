@@ -6,6 +6,7 @@ from datetime import datetime
 from collections import defaultdict
 import io
 from i18n_manager import i18n, _
+from utils.permissions import check_permission
 
 class Statistics(commands.Cog):
     def __init__(self, bot):
@@ -160,14 +161,29 @@ class Statistics(commands.Cog):
             )
             
             view = StatisticsMenuView(self)
-            await interaction.response.edit_message(embed=embed, view=view)
+            
+            # 優先嘗試編輯 original response（如果已 defer）
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，使用 followup
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
             print(f"Error in show_statistics_menu: {e}")
-            await interaction.response.send_message(
-                "❌ 載入統計選單時發生錯誤",
-                ephemeral=True
-            )
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ 載入統計選單時發生錯誤",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ 載入統計選單時發生錯誤",
+                        ephemeral=True
+                    )
+            except Exception:
+                pass
     
     async def show_alliance_statistics(self, interaction: discord.Interaction):
         """顯示聯盟成員統計"""
@@ -603,22 +619,37 @@ class StatisticsMenuView(discord.ui.View):
     
     @discord.ui.button(label="聯盟成員統計", emoji="📈", style=discord.ButtonStyle.primary, row=0)
     async def alliance_stats_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.show_alliance_statistics(interaction)
     
     @discord.ui.button(label="熔爐等級分佈", emoji="🔥", style=discord.ButtonStyle.primary, row=0)
     async def furnace_dist_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.show_furnace_distribution(interaction)
     
     @discord.ui.button(label="詳細聯盟報表", emoji="📊", style=discord.ButtonStyle.primary, row=1)
     async def detail_report_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.show_alliance_detail_report(interaction)
     
     @discord.ui.button(label="變更統計", emoji="📉", style=discord.ButtonStyle.primary, row=1)
     async def changes_stats_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         await self.cog.show_changes_statistics(interaction)
     
     @discord.ui.button(label="主選單", emoji="🏠", style=discord.ButtonStyle.secondary, row=2)
     async def main_menu_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         try:
             alliance_cog = self.cog.bot.get_cog("Alliance")
             if alliance_cog:

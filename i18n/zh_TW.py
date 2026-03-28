@@ -230,6 +230,7 @@ GIFT_CODE = {
     "error_timeout": "⏱️ **{count}** 位成員因連線逾時而失敗。",
     "error_login_expired": "🔒 **{count}** 位成員因登入在處理中過期而失敗。",
     "error_login_failed": "🔐 **{count}** 位成員因登入問題而失敗。",
+    "error_role_not_exist": "👤 **{count}** 位成員因角色不存在而失敗（請確認 FID 是否正確或角色是否已刪除）。",
     "error_captcha_failed": "🤖 **{count}** 位成員因驗證碼失敗。",
     "error_captcha_solver": "🔧 **{count}** 位成員因驗證碼解析器問題而失敗。",
     "error_ocr_disabled": "🚫 **{count}** 位成員因 OCR 已停用而失敗。",

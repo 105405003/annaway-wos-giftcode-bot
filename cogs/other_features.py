@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import sqlite3
 from i18n_manager import i18n, _
+from utils.permissions import check_permission
 
 class OtherFeatures(commands.Cog):
     def __init__(self, bot):
@@ -69,6 +70,9 @@ class OtherFeaturesView(discord.ui.View):
         row=0
     )
     async def statistics_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         try:
             statistics_cog = self.cog.bot.get_cog("Statistics")
             if statistics_cog:
@@ -80,10 +84,11 @@ class OtherFeaturesView(discord.ui.View):
                 )
         except Exception as e:
             print(f"Error loading Statistics menu: {e}")
-            await interaction.response.send_message(
-                "❌ 載入統計選單時發生錯誤",
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ 載入統計選單時發生錯誤",
+                    ephemeral=True
+                )
 
     @discord.ui.button(
         label=_("set_global_gift_channel", "BUTTON"),
@@ -93,6 +98,9 @@ class OtherFeaturesView(discord.ui.View):
         row=0
     )
     async def set_global_gift_channel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Admin 級別（全域設定）
+        if not await check_permission(interaction, admin_only=True):
+            return
         try:
             alliance_cog = self.cog.bot.get_cog("Alliance")
             if alliance_cog:
@@ -104,10 +112,11 @@ class OtherFeaturesView(discord.ui.View):
                 )
         except Exception as e:
             print(f"Error loading set_global_gift_channel: {e}")
-            await interaction.response.send_message(
-                "❌ 設定全域禮品碼頻道時發生錯誤",
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ 設定全域禮品碼頻道時發生錯誤",
+                    ephemeral=True
+                )
 
     @discord.ui.button(
         label=_('backup_system', 'OTHER_FEATURES'),
@@ -117,6 +126,9 @@ class OtherFeaturesView(discord.ui.View):
         row=1
     )
     async def backup_system_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Admin 級別
+        if not await check_permission(interaction, admin_only=True):
+            return
         try:
             backup_cog = self.cog.bot.get_cog("BackupOperations")
             if backup_cog:
@@ -128,10 +140,11 @@ class OtherFeaturesView(discord.ui.View):
                 )
         except Exception as e:
             print(f"Error loading Backup System menu: {e}")
-            await interaction.response.send_message(
-                _('error_loading_backup_system_menu', 'OTHER_FEATURES'),
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    _('error_loading_backup_system_menu', 'OTHER_FEATURES'),
+                    ephemeral=True
+                )
 
     @discord.ui.button(
         label=_('main_menu', 'GENERAL'),
@@ -140,6 +153,9 @@ class OtherFeaturesView(discord.ui.View):
         row=2
     )
     async def main_menu_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 權限檢查：Manager 級別
+        if not await check_permission(interaction, admin_only=False):
+            return
         try:
             alliance_cog = self.cog.bot.get_cog("Alliance")
             if alliance_cog:

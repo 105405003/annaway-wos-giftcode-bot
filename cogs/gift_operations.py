@@ -26,6 +26,7 @@ from .two_captcha_service import TwoCaptchaService
 from collections import deque
 from i18n_manager import i18n, _
 from utils.permissions import requires_annaway_role, check_permission, check_guild_context
+from utils.wos_api_headers import wos_giftcode_api_post_headers
 
 class GiftOperations(commands.Cog):
     def __init__(self, bot):
@@ -85,6 +86,14 @@ class GiftOperations(commands.Cog):
             )
         """)
         self.conn.commit()
+        # 追蹤 ROLE_NOT_EXIST 次數，連續兩次才刪除
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS role_not_exist_tracking (
+                fid INTEGER PRIMARY KEY,
+                fail_count INTEGER DEFAULT 0
+            )
+        """)
+        self.conn.commit()
 
         # Settings DB Connection
         if not os.path.exists('db'): os.makedirs('db')
@@ -126,8 +135,8 @@ class GiftOperations(commands.Cog):
         self.wos_player_info_url = "https://wos-giftcode-api.centurygame.com/api/player"
         self.wos_giftcode_url = "https://wos-giftcode-api.centurygame.com/api/gift_code"
         self.wos_captcha_url = "https://wos-giftcode-api.centurygame.com/api/captcha"
-        self.wos_giftcode_redemption_url = "https://wos-giftcode.centurygame.com"
         self.wos_encrypt_key = "tB87#kPtkxqOS2"
+        self.wos_api_headers = wos_giftcode_api_post_headers()
 
         # Retry Configuration for Requests
         self.retry_config = Retry(
@@ -1093,12 +1102,6 @@ class GiftOperations(commands.Cog):
         session = requests.Session()
         session.mount("https://", HTTPAdapter(max_retries=self.retry_config))
 
-        headers = {
-            "accept": "application/json, text/plain, */*",
-            "content-type": "application/x-www-form-urlencoded",
-            "origin": self.wos_giftcode_redemption_url,
-        }
-
         data_to_encode = {
             "fid": f"{player_id}",
             "time": f"{int(datetime.now().timestamp())}",
@@ -1107,7 +1110,7 @@ class GiftOperations(commands.Cog):
         
         response_stove_info = session.post(
             self.wos_player_info_url,
-            headers=headers,
+            headers=self.wos_api_headers,
             data=data,
         )
         return session, response_stove_info
@@ -1217,7 +1220,11 @@ class GiftOperations(commands.Cog):
                             self.processing_stats["captcha_submissions"] += 1
                             
                             # Submit to gift code API
-                            response_giftcode = session.post(self.wos_giftcode_url, data=data)
+                            response_giftcode = session.post(
+                                self.wos_giftcode_url,
+                                headers=self.wos_api_headers,
+                                data=data,
+                            )
                             
                             # Log the redemption attempt
                             log_entry_redeem = f"\n{datetime.now()} API REQ - Gift Code Redeem (2CAPTCHA)\nFID:{player_id}, Code:{giftcode}, Captcha:{captcha_code}\n"
@@ -1298,7 +1305,11 @@ class GiftOperations(commands.Cog):
             self.processing_stats["captcha_submissions"] += 1
             
             # Submit to gift code API
-            response_giftcode = session.post(self.wos_giftcode_url, data=data)
+            response_giftcode = session.post(
+                self.wos_giftcode_url,
+                headers=self.wos_api_headers,
+                data=data,
+            )
             
             # Log the redemption attempt
             log_entry_redeem = f"\n{datetime.now()} API REQ - Gift Code Redeem\nFID:{player_id}, Code:{giftcode}, Captcha:{captcha_code}\n"
@@ -1391,7 +1402,8 @@ class GiftOperations(commands.Cog):
                 if existing_record:
                     if existing_record[0] in ["SUCCESS", "RECEIVED", "SAME TYPE EXCHANGE", "TIME_ERROR", "CDK_NOT_FOUND", "USAGE_LIMIT"]:
                         self.logger.info(f"CACHE HIT - User {player_id} code '{giftcode}' status: {existing_record[0]}")
-                        return existing_record[0]
+                        status = existing_record[0]
+                        return status
 
             # Check if OCR Enabled and Solver Ready
             self.settings_cursor.execute("SELECT enabled FROM ocr_settings ORDER BY id DESC LIMIT 1")
@@ -1426,8 +1438,21 @@ class GiftOperations(commands.Cog):
             login_successful = player_info_json.get("msg") == "success"
 
             if not login_successful:
-                status = "LOGIN_FAILED"
-                log_message = f"{datetime.now()} Login failed for FID {player_id}: {player_info_json.get('msg', 'Unknown')}\n"
+                # Distinguish "role not exist" (err_code 40001) from other login failures
+                err_code = player_info_json.get("err_code")
+                api_msg = player_info_json.get("msg", "")
+                if err_code == 40001 or "role not exist" in str(api_msg).lower():
+                    status = "ROLE_NOT_EXIST"
+                else:
+                    status = "LOGIN_FAILED"
+                if response_stove_info.status_code == 403:
+                    err_detail = f"HTTP 403 - {response_stove_info.text[:200]}"
+                    self.logger.warning(f"GiftOps: Player Info API returned 403 for FID {player_id}. Server may be blocking requests (check User-Agent/Referer or IP).")
+                elif not player_info_json:
+                    err_detail = f"HTTP {response_stove_info.status_code} - {response_stove_info.text[:200]}"
+                else:
+                    err_detail = player_info_json.get("msg", "Unknown")
+                log_message = f"{datetime.now()} Login failed for FID {player_id}: {err_detail}\n"
                 self.giftlog.info(log_message.strip())
                 return status
 
@@ -2139,12 +2164,6 @@ class GiftOperations(commands.Cog):
         if session is None:
             session = requests.Session()
             session.mount("https://", HTTPAdapter(max_retries=self.retry_config))
-            
-        headers = {
-            "accept": "application/json, text/plain, */*",
-            "content-type": "application/x-www-form-urlencoded",
-            "origin": self.wos_giftcode_redemption_url,
-        }
         
         data_to_encode = {
             "fid": player_id,
@@ -2156,7 +2175,7 @@ class GiftOperations(commands.Cog):
         try:
             response = session.post(
                 self.wos_captcha_url,
-                headers=headers,
+                headers=self.wos_api_headers,
                 data=data,
             )
             
@@ -4127,11 +4146,19 @@ class GiftOperations(commands.Cog):
             
             alliance_name = name_result[0]
             
-            # 2. 優先使用全域頻道，如果沒有則使用聯盟專屬頻道
+            # 2. 獲取聯盟所屬的 Guild ID（用於隔離檢查）
+            self.alliance_cursor.execute("SELECT discord_server_id FROM alliance_list WHERE alliance_id = ?", (alliance_id,))
+            guild_result = self.alliance_cursor.fetchone()
+            alliance_guild_id = guild_result[0] if guild_result else None
+            
+            if not alliance_guild_id:
+                self.logger.error(f"GiftOps: Could not find guild_id for alliance {alliance_name} (ID: {alliance_id})")
+                return False
+            
             channel_id = None
             channel_source = None
             
-            # 先檢查全域頻道設定
+            # 先檢查全域頻道設定（必須與聯盟在同一個 Guild）
             try:
                 # 使用 settings 連線而不是 cursor
                 with sqlite3.connect('db/settings.sqlite') as settings_conn:
@@ -4140,15 +4167,21 @@ class GiftOperations(commands.Cog):
                     global_channel_result = settings_cursor.fetchone()
                     
                     if global_channel_result and global_channel_result[0]:
-                        channel_id = int(global_channel_result[0])
-                        channel_source = "global"
-                        self.logger.info(f"GiftOps: Using global gift code channel {channel_id} for alliance {alliance_name}")
+                        global_channel_id = int(global_channel_result[0])
+                        # 檢查全域頻道是否與聯盟在同一個 Guild
+                        global_channel = self.bot.get_channel(global_channel_id)
+                        if global_channel and global_channel.guild and global_channel.guild.id == alliance_guild_id:
+                            channel_id = global_channel_id
+                            channel_source = "global"
+                            self.logger.info(f"GiftOps: Using global gift code channel {channel_id} for alliance {alliance_name} (Guild: {alliance_guild_id})")
+                        else:
+                            self.logger.info(f"GiftOps: Global channel {global_channel_id} is not in the same guild as alliance {alliance_name} (Alliance Guild: {alliance_guild_id}), skipping.")
             except Exception as e:
                 self.logger.warning(f"GiftOps: Error checking global channel: {e}")
                 import traceback
                 self.logger.warning(f"GiftOps: Traceback: {traceback.format_exc()}")
             
-            # 如果沒有全域頻道，使用聯盟專屬頻道
+            # 如果沒有全域頻道或全域頻道不在同一個 Guild，使用聯盟專屬頻道
             if not channel_id:
                 try:
                     self.alliance_cursor.execute("SELECT channel_id FROM alliancesettings WHERE alliance_id = ?", (alliance_id,))
@@ -4161,7 +4194,7 @@ class GiftOperations(commands.Cog):
                     self.logger.warning(f"GiftOps: Error checking alliance channel: {e}")
             
             if not channel_id:
-                self.logger.error(f"GiftOps: No channel configured for alliance {alliance_name}. Please set either a global channel or alliance-specific channel.")
+                self.logger.error(f"GiftOps: No channel configured for alliance {alliance_name}. Please set either a global channel (in the same guild) or alliance-specific channel.")
                 return False
             
             try:
@@ -4174,7 +4207,12 @@ class GiftOperations(commands.Cog):
                 self.logger.error(f"GiftOps: Bot cannot access {channel_source} channel {channel_id} for alliance {alliance_name}.")
                 return False
             
-            self.logger.info(f"GiftOps: Successfully using {channel_source} channel #{channel.name} ({channel_id}) for alliance {alliance_name}")
+            # 最終 Guild 隔離檢查
+            if channel.guild.id != alliance_guild_id:
+                self.logger.error(f"GiftOps: Channel {channel_id} is in guild {channel.guild.id}, but alliance {alliance_name} is in guild {alliance_guild_id}. Guild isolation violated!")
+                return False
+            
+            self.logger.info(f"GiftOps: Successfully using {channel_source} channel #{channel.name} ({channel_id}) in guild {alliance_guild_id} for alliance {alliance_name}")
 
             # Check if OCR is enabled
             self.settings_cursor.execute("SELECT enabled FROM ocr_settings ORDER BY id DESC LIMIT 1")
@@ -4313,6 +4351,7 @@ class GiftOperations(commands.Cog):
                             "TIMEOUT_RETRY": _("error_timeout", "GIFT_CODE"),
                             "LOGIN_EXPIRED_MID_PROCESS": _("error_login_expired", "GIFT_CODE"),
                             "LOGIN_FAILED": _("error_login_failed", "GIFT_CODE"),
+                            "ROLE_NOT_EXIST": _("error_role_not_exist", "GIFT_CODE"),
                             "CAPTCHA_SOLVING_FAILED": _("error_captcha_failed", "GIFT_CODE"),
                             "CAPTCHA_SOLVER_ERROR": _("error_captcha_solver", "GIFT_CODE"),
                             "OCR_DISABLED": _("error_ocr_disabled", "GIFT_CODE"),
@@ -4460,11 +4499,23 @@ class GiftOperations(commands.Cog):
                     successful_users.append(nickname)
                     batch_results.append((fid, giftcode, response_status))
                     mark_processed = True
+                    # 成功時重置 ROLE_NOT_EXIST 計數，確保「連續」指連續失敗
+                    try:
+                        self.cursor.execute("DELETE FROM role_not_exist_tracking WHERE fid = ?", (fid,))
+                        self.conn.commit()
+                    except Exception:
+                        pass
                 elif response_status in ["RECEIVED", "SAME TYPE EXCHANGE"]:
                     received_count += 1
                     already_used_users.append(nickname)
                     batch_results.append((fid, giftcode, response_status))
                     mark_processed = True
+                    # 成功時重置 ROLE_NOT_EXIST 計數
+                    try:
+                        self.cursor.execute("DELETE FROM role_not_exist_tracking WHERE fid = ?", (fid,))
+                        self.conn.commit()
+                    except Exception:
+                        pass
                 elif response_status == "OCR_DISABLED":
                     add_to_failed = True
                     mark_processed = True
@@ -4475,11 +4526,35 @@ class GiftOperations(commands.Cog):
                     mark_processed = True
                     fail_reason = f"Solver Error ({response_status})"
                     error_summary["CAPTCHA_SOLVER_ERROR"] = error_summary.get("CAPTCHA_SOLVER_ERROR", 0) + 1
-                elif response_status in ["LOGIN_FAILED", "LOGIN_EXPIRED_MID_PROCESS", "ERROR", "UNKNOWN_API_RESPONSE"]:
+                elif response_status in ["LOGIN_FAILED", "ROLE_NOT_EXIST", "LOGIN_EXPIRED_MID_PROCESS", "ERROR", "UNKNOWN_API_RESPONSE"]:
                     add_to_failed = True
                     mark_processed = True
                     fail_reason = f"Processing Error ({response_status})"
                     error_summary[response_status] = error_summary.get(response_status, 0) + 1
+                    # 角色不存在時，連續兩次才從資料庫移除該 FID
+                    if response_status == "ROLE_NOT_EXIST":
+                        try:
+                            self.cursor.execute(
+                                "INSERT INTO role_not_exist_tracking (fid, fail_count) VALUES (?, 1) "
+                                "ON CONFLICT(fid) DO UPDATE SET fail_count = fail_count + 1",
+                                (fid,)
+                            )
+                            self.conn.commit()
+                            row = self.cursor.execute(
+                                "SELECT fail_count FROM role_not_exist_tracking WHERE fid = ?", (fid,)
+                            ).fetchone()
+                            fail_count = row[0] if row else 0
+                            if fail_count >= 2:
+                                with sqlite3.connect('db/users.sqlite') as users_conn:
+                                    users_conn.execute("DELETE FROM users WHERE fid = ?", (fid,))
+                                    users_conn.commit()
+                                self.cursor.execute("DELETE FROM role_not_exist_tracking WHERE fid = ?", (fid,))
+                                self.conn.commit()
+                                self.logger.info(f"GiftOps: Removed FID {fid} ({nickname}) from users table (role not exist x2).")
+                            else:
+                                self.logger.info(f"GiftOps: FID {fid} ({nickname}) role not exist (1/2), will remove on next occurrence.")
+                        except Exception as del_err:
+                            self.logger.exception(f"GiftOps: Failed to handle ROLE_NOT_EXIST for FID {fid}: {del_err}")
                 elif response_status == "TIMEOUT_RETRY":
                     queue_for_retry = True
                     retry_delay = API_RATE_LIMIT_COOLDOWN

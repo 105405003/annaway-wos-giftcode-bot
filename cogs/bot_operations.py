@@ -68,6 +68,12 @@ class BotOperations(commands.Cog):
         custom_id = interaction.data.get("custom_id", "")
         
         if custom_id == "bot_operations":
+            # 檢查權限並顯示機器人操作選單
+            if not await check_permission(interaction, admin_only=False):
+                return
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            await self.show_bot_operations_menu(interaction)
             return
         
         # Centralized permission gating for bot operation buttons
@@ -962,7 +968,7 @@ class BotOperations(commands.Cog):
                     "❌ Update checking is disabled in this fork.", 
                     ephemeral=True
                 )
-                    return
+                return
 
                 current_version, new_version, update_notes, updates_needed = await self.check_for_updates()
 
@@ -1135,16 +1141,29 @@ class BotOperations(commands.Cog):
                 row=4
             ))
 
-            await interaction.response.edit_message(embed=embed, view=view)
+            # 優先嘗試編輯 original response（如果已 defer）
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，使用 followup
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
         except Exception as e:
             if not any(error_code in str(e) for error_code in ["10062", "40060"]):
                 print(f"Show bot operations menu error: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "❌ An error occurred while showing the menu.",
-                    ephemeral=True
-                )
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ An error occurred while showing the menu.",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ An error occurred while showing the menu.",
+                        ephemeral=True
+                    )
+            except Exception:
+                pass
 
     async def confirm_permission_removal(self, admin_id: int, alliance_id: int, confirm_interaction: discord.Interaction):
         try:

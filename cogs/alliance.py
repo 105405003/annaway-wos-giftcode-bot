@@ -462,6 +462,7 @@ class Alliance(commands.Cog):
             manager_ids = {
                 "alliance_operations",
                 "member_operations",
+                "bot_operations",
                 "gift_code_operations",
                 "alliance_history",
                 "other_features",
@@ -478,8 +479,11 @@ class Alliance(commands.Cog):
                 if not await check_permission(interaction, admin_only=False):
                     return
             
-            # Defer immediately after permission check to prevent timeout
-            if not interaction.response.is_done():
+            # Modal 操作不需要 defer（會導致無法顯示 modal）
+            modal_ids = {"add_alliance", "edit_alliance"}
+            
+            # Defer immediately after permission check to prevent timeout (except for modals)
+            if custom_id not in modal_ids and not interaction.response.is_done():
                 await interaction.response.defer(ephemeral=True)
             
             try:

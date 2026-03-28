@@ -191,7 +191,13 @@ class BackupOperations(commands.Cog):
             )
 
         view = BackupView(self)
-        await interaction.response.edit_message(embed=embed, view=view)
+        
+        # 優先嘗試編輯 original response（如果已 defer）
+        try:
+            await interaction.edit_original_response(embed=embed, view=view)
+        except discord.NotFound:
+            # 如果 original response 不存在，使用 followup
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     def get_backup_files(self):
         """Get list of all local backup files"""

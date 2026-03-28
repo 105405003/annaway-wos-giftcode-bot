@@ -7,6 +7,7 @@ import time
 import asyncio
 import sqlite3
 from i18n_manager import i18n, _
+from utils.wos_api_headers import wos_giftcode_api_post_headers
 
 class WCommand(commands.Cog):
     def __init__(self, bot):
@@ -72,7 +73,7 @@ class WCommand(commands.Cog):
             form = f"sign={sign}&{form}"
 
             url = 'https://wos-giftcode-api.centurygame.com/api/player'
-            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            headers = wos_giftcode_api_post_headers()
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE

@@ -318,7 +318,8 @@ class AllianceMemberOperations(commands.Cog):
     async def handle_member_operations(self, interaction: discord.Interaction):
         """處理成員操作主選單"""
         try:
-            # Defer to prevent interaction timeout
+            # 注意：interaction 可能已經在 alliance.py 中被 defer 了
+            # 只在尚未 defer 時才執行 defer
             if not interaction.response.is_done():
                 await interaction.response.defer(ephemeral=True)
             
@@ -350,11 +351,12 @@ class AllianceMemberOperations(commands.Cog):
             
             view = MemberOperationsView(self)
             
-            # Use followup if already deferred
-            if interaction.response.is_done():
+            # 優先嘗試編輯 original response（如果已 defer）
+            try:
+                await interaction.edit_original_response(embed=embed, view=view)
+            except discord.NotFound:
+                # 如果 original response 不存在，使用 followup
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
             print(f"Error in handle_member_operations: {e}")
